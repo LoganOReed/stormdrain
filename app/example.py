@@ -11,6 +11,4 @@ def octaveTest():
 if __name__ == "__main__":
     print(np.__config__.show())
     print("\n\n")
-    sort()
-    norm()
     print(octaveTest())

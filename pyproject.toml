@@ -13,6 +13,7 @@ scipy = "^1.15.2"
 matplotlib = "^3.10.0"
 oct2py = "^5.8.0"
 hatchling = "^1.27.0"
+pyyaml = "^6.0.2"
 
 [build-system]
 requires = ["poetry-core"]
