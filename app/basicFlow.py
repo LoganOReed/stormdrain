@@ -20,6 +20,7 @@ class DrainGraph:
         """
         self.fps = 10
         self.T = 3600
+        self.drainedAmount = 0
         self.resolution = 10 # animation changes every "resolution" number of T steps
         self.rainRate = 0.375 # (m^3/s) for each node, from calculations above
         self.G = nx.DiGraph()
@@ -65,13 +66,58 @@ class DrainGraph:
 
     def update(self, frame):
         tCurr = frame*self.resolution
+        # Actual update steps
         for i in range(self.resolution):
             for n in range(1,17):
-                self.G.nodes[n]['amount'] += 10  # Example update logic
+        # 1. add water from rain 
+                self.G.nodes[n]['amount'] += self.rainRate
+        # 2. remove water through drains
+                dAmt = self.G.nodes[n]['drainRate']
+                if dAmt <= self.G.nodes[n]['amount']:
+                    self.drainedAmount += dAmt
+                    self.G.nodes[n]['amount'] -= dAmt  # Example update logic
+                else:
+                    self.drainedAmount += self.G.nodes[n]['amount']
+                    self.G.nodes[n]['amount'] = 0.0
+        # 3. update from edges edges
+                available = self.G.nodes[n]['amount']
+                normal_edges = []
+                runoff_edges = []
+                for _, v, attr in self.G.out_edges(n, data=True):
+                    if v == 0:
+                        runoff_edges.append((v, attr))
+                    else:
+                        normal_edges.append((v, attr))
+                for v, attr in normal_edges:
+                    capacity = attr.get('weight', 1)
+                    # Only distribute if there is available flow
+                    if available == 0:
+                        break
+                    # Distribute up to capacity or what's available
+                    sent = min(capacity, available)
+                    self.G.nodes[v]['amount'] += sent
+                    available -= sent  # update available for remaining edges
+                # After distributing, update the source node's amount
+                self.G.nodes[n]['amount'] = available
+                for v, attr in runoff_edges:
+                    capacity = attr.get('weight', 1)
+                    # Only distribute if there is available flow
+                    if available == 0:
+                        break
+                    # Distribute up to capacity or what's available
+                    sent = min(capacity, available)
+                    self.G.nodes[v]['amount'] += sent
+                    available -= sent  # update available for remaining edges
+                # After distributing, update the source node's amount
+                self.G.nodes[n]['amount'] = available
+
+
+
+                    
 
     def draw(self):
         def get_colors():
-            amounts = [self.G.nodes[n]['amount'] for n in range(0,17)]
+            amounts = [self.G.nodes[n]['amount'] for n in self.G.nodes()]
             # Normalize for colormap
             # TODO: Update this when using an actual update function
             # norm = plt.Normalize(min(amounts), max(amounts))
