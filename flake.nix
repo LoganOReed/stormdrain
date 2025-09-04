@@ -49,7 +49,7 @@
           #
           # Use this shell for developing your app.
           default = pkgs.mkShell {
-            packages = [ pkgs.meson pkgs.gfortran pkgs.ninja pkgs.lapack pkgs.blas pkgs.octaveFull];
+            packages = [ pkgs.meson pkgs.gfortran pkgs.ninja pkgs.lapack pkgs.blas pkgs.octaveFull pkgs.ffmpeg];
             inputsFrom = [ pkgs.myapp ];
           };
 
