@@ -9,6 +9,7 @@ import matplotlib.animation as animation
 # 4 block graph: ~1500x1500ftsq = 209000m^2
 # so 21250 m^3 over lets say an hour
 # -> 6m^3/s over entire area
+# TODO: FIX
 
 # According to chatgpt, drains range from 0.006 to 0.12 m^3/s
 
