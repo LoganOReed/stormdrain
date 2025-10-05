@@ -14,7 +14,7 @@ matplotlib = "^3.10.0"
 oct2py = "^5.8.0"
 hatchling = "^1.27.0"
 pyyaml = "^6.0.2"
-networkx = "^3.5"
+igraph = "^0.11.9"
 
 [build-system]
 requires = ["poetry-core"]
