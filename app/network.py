@@ -42,14 +42,14 @@ class SubcatchmentGraph:
         super(SubcatchmentGraph, self).__init__()
         self.G = ig.Graph(n=n,edges=[],directed=True,
                           vertex_attrs={
-                              'area': [40000,40000,40000],
-                              'width': [400,400,400],
-                              'slope': [0.005,0.002,0.004],
-                              'n': [0.017,0.017,0.017],
-                              'invert': [0.0,0.016,0.035],
-                              'x': [100,200,200],
-                              'y': [100,100,0],
-                              'depth': [0.0,0.0,0.0]
+                              'area': np.array([10000,10000,10000]),
+                              'width': np.array([100,100,100]),
+                              'slope': np.array([0.005,0.002,0.004]),
+                              'n': np.array([0.017,0.017,0.017]),
+                              'invert': np.array([0.0,0.016,0.035]),
+                              'x': np.array([100,200,200]),
+                              'y': np.array([100,100,0]),
+                              'depth': np.array([0.0,0.0,0.0])
                               })
         # Rainfall (in hours 0-6)
         self.rainfall = [0.0,0.5,1.0,0.75,0.5,0.25,0.0]
@@ -59,10 +59,17 @@ class SubcatchmentGraph:
         print(self.rainfall)
 
     # TODO: Write this
-    def update(self, dt, rainfall )
-        # d_t = f - e - i
-        # if self.G['depth']:
-        sc.integrate.rk45(lambda t,d: )
+    def update(self, t, dt, rainfall ):
+        #d_t = f - e - i - \a (d - d_s)^5/3
+        # calculating runoff
+        def ode(t,x):
+            a = (self.G.vs['width']*np.power(self.G.vs['slope'],0.5))/ np.multiply(self.G.vs['area'],self.G.vs['n'])
+            print(10000000000*np.subtract(rainfall, np.power(np.clip(np.subtract(x, self.G.vs['invert']),0,None),5/3)))
+            return np.subtract(rainfall, np.power(np.clip(np.subtract(x, self.G.vs['invert']),0,None),5/3))
+        #print(ode(self.G.vs['depth']))
+
+        self.G.vs['depth'] = sc.integrate.RK45(ode, t, self.G.vs['depth'], t + dt).y
+
 
 
 
@@ -70,5 +77,8 @@ class SubcatchmentGraph:
 
 if __name__ == "__main__":
     g = SubcatchmentGraph(3)
+    g.update(0,1,0.00000003)
+    g.update(1,2,0.000000005)
+    print(g.G.vs['depth'])
     print("Dont call this directly :(")
 
