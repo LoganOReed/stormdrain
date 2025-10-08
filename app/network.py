@@ -42,8 +42,8 @@ class SubcatchmentGraph:
         super(SubcatchmentGraph, self).__init__()
         self.G = ig.Graph(n=n,edges=[],directed=True,
                           vertex_attrs={
-                              'area': np.array([10000,10000,10000]),
-                              'width': np.array([100,100,100]),
+                              'area': np.array([10000.0,10000.0,10000.0]),
+                              'width': np.array([100.0,100.0,100.0]),
                               'slope': np.array([0.005,0.002,0.004]),
                               'n': np.array([0.017,0.017,0.017]),
                               'invert': np.array([0.0,0.016,0.035]),
@@ -59,17 +59,30 @@ class SubcatchmentGraph:
         print(self.rainfall)
 
     # TODO: Write this
-    def update(self, t, dt, rainfall ):
-        #d_t = f - e - i - \a (d - d_s)^5/3
-        # calculating runoff
-        def ode(t,x):
-            a = (self.G.vs['width']*np.power(self.G.vs['slope'],0.5))/ np.multiply(self.G.vs['area'],self.G.vs['n'])
-            print(10000000000*np.subtract(rainfall, np.power(np.clip(np.subtract(x, self.G.vs['invert']),0,None),5/3)))
-            return np.subtract(rainfall, np.power(np.clip(np.subtract(x, self.G.vs['invert']),0,None),5/3))
-        #print(ode(self.G.vs['depth']))
-
-        self.G.vs['depth'] = sc.integrate.RK45(ode, t, self.G.vs['depth'], t + dt).y
-
+    def update(self, t, dt, rainfall):
+        def ode(t, x):
+            y = np.zeros(self.G.vcount())
+            outflow = np.zeros(self.G.vcount())
+            for i in range(self.G.vcount()):
+                a = (self.G.vs['width'][i] * np.power(self.G.vs['slope'][i], 0.5)) / (self.G.vs['area'][i] * self.G.vs['n'][i])
+                # Calculate depth above invert, ensuring it's non-negative
+                depth_above_invert = np.maximum(x[i] - self.G.vs['invert'][i], 0.0)
+                # Calculate outflow term
+                outflow[i] = a * np.power(depth_above_invert, 5/3)
+                y[i] = rainfall - outflow[i]
+            print(f"rhs: {y}")
+            print(f"outflow: {outflow}")
+            return y
+    
+        # Use solve_ivp instead of RK45 directly
+        solution = sc.integrate.solve_ivp(
+            ode, 
+            (t, t + dt), 
+            self.G.vs['depth'], 
+            method='RK45'
+        )
+        
+        self.G.vs['depth'] = solution.y[:, -1]
 
 
 
@@ -77,8 +90,9 @@ class SubcatchmentGraph:
 
 if __name__ == "__main__":
     g = SubcatchmentGraph(3)
-    g.update(0,1,0.00000003)
-    g.update(1,2,0.000000005)
-    print(g.G.vs['depth'])
+    g.update(0,1,0.3)
+    print(f"After 1 step: {g.G.vs['depth']}")
+    g.update(1,2,0.5)
+    print(f"After 2 step: {g.G.vs['depth']}")
     print("Dont call this directly :(")
 
