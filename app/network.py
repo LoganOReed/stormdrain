@@ -107,7 +107,7 @@ class SubcatchmentGraph:
         self.G.vs['depth'] = solution.y[:, -1]
         return solution.y[:,-1]
 
-    def visualize(self, times, depths):
+    def visualize(self, times, depths, fileName=None):
         """
         Visualize depth over time for each subcatchment.
         
@@ -126,7 +126,7 @@ class SubcatchmentGraph:
         for i in range(self.G.vcount()):
             plt.plot(times, depths_array[:, i], 
                     label=f'Subcatchment {i}', 
-                    marker='o', 
+                    # marker='o', 
                     linewidth=2)
         
         plt.xlabel('Time (hours)', fontsize=12)
@@ -135,7 +135,9 @@ class SubcatchmentGraph:
         plt.legend()
         plt.grid(True, alpha=0.3)
         plt.tight_layout()
-        plt.savefig(f"figures/test.png")
+        if fileName == None:
+            fileName = "test"
+        plt.savefig(f"figures/{fileName}.png")
 
 
 
