@@ -1,4 +1,3 @@
 app/fortran
 app/__pycache__
-figures/*
 .direnv/
