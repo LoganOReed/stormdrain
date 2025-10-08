@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import scipy as sc
 import random
+from .newton_bisection import findroot
 
 
 
@@ -167,7 +168,13 @@ class SewerGraph:
                 s = np.array([self.G.vs[e.source]['x'], self.G.vs[e.source]['y'], self.G.vs[e.source]['z']])
                 d = np.array([self.G.vs[e.target]['x'], self.G.vs[e.target]['y'], self.G.vs[e.target]['z']])
                 self.G.es[e.index]['length'] = np.linalg.norm(s - d)
-                print(self.G.es[e.index]['length'])
+            # calculate the slope of each pipe
+            for e in self.G.es:
+                slope = self.G.vs[e.source]['z'] - self.G.vs[e.target]['z']
+                if slope < 0.0001:
+                    print(f"WARNING: slope for edge {e} is too small.")
+                self.G.es[e.index]['slope'] = self.G.vs[e.source]['z'] - self.G.vs[e.target]['z']
+            print(self.G.es['slope'])
             # TODO: add offset height calculations
             # Needs to be given a priori
             self.G.es['offsetHeight'] = [0.0 for _ in range(self.G.ecount())]
@@ -178,6 +185,30 @@ class SewerGraph:
         # print(self.G.summary())
         # print(self.G.topological_sorting())
         # print(self.rainfall)
+
+    def _steadyFlow(self, t, x):
+        """
+        TODO: List assumptions. Uses mannings equation to take the total inflow and write it as
+        a discharge considering the pipe shape.
+
+        Parameters:
+        -----------
+        t : float
+            the current time in the ode
+        x : list(float)
+            list of depths
+        """
+        pass
+
+
+    def _getDepthCircularPipe(self, q, diam, n, s):
+        """
+        Compute depth for given flow on Circular Pipe using Manning equation.
+        Solves Q = (1/n) * A * R^(2/3) * S^(1/2) for depth.
+        Using Newton-Raphson.
+        """
+        pass
+
 
     def update(self, t, dt, rainfall):
         """
