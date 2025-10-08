@@ -59,7 +59,28 @@ class SubcatchmentGraph:
         # print(self.rainfall)
 
     def update(self, t, dt, rainfall):
+        """
+        Updates the attributes of the network using the ode defined in "ode".
+
+        Parameters:
+        -----------
+        t : float
+            initial time
+        dt : float
+            time between initial time and desired end time
+        rainfall : float
+            average rainfall measured over the time [t,t+dt]
+
+        """
         def ode(t, x):
+            """
+            Solves d_t = f - alpha * (d-ds)^5/3.
+
+            Parameters:
+            -----------
+            t: time
+            x : variable of ode.
+            """
             y = np.zeros(self.G.vcount())
             outflow = np.zeros(self.G.vcount())
             for i in range(self.G.vcount()):
@@ -67,8 +88,6 @@ class SubcatchmentGraph:
                 depth_above_invert = np.maximum(x[i] - self.G.vs['invert'][i], 0.0)
                 outflow[i] = a * np.power(depth_above_invert, 5/3)
                 y[i] = rainfall - outflow[i]
-            # print(f"rhs: {y}")
-            # print(f"outflow: {outflow}")
             return y
     
         # NOTE: RK45 returns an iterator we need to use solve_ivp
@@ -87,9 +106,9 @@ class SubcatchmentGraph:
         
         Parameters:
         -----------
-        times : list or array
+        times : 1-d list
             Array of time points
-        depths : list of arrays
+        depths : 2-d list
             List where each element is an array of depths at that time point
             Should have shape (n_timesteps, n_vertices)
         """
