@@ -145,18 +145,22 @@ class SubcatchmentGraph:
 
 class SewerGraph:
     """Graph of Sewer portion of Hydraulic Network."""
-    def __init__(self, subcatchmentCoupling, n=None):
+    def __init__(self, n=None):
         super(SewerGraph, self).__init__()
         if n == None:
             self.G = ig.Graph(n=5,edges=[(0,1),(2,3),(3,1),(1,4)],directed=True,
                               vertex_attrs={
                                   'invert': np.array([0.0,0.016,0.035]),
-                                  'x': np.array([100,100,200,200,0]),
-                                  'y': np.array([100,0,100,0,0]),
+                                  'x': np.array([100.0,100.0,200.0,200.0,0.0]),
+                                  'y': np.array([100.0,0.0,100.0,0.0,0.0]),
                                   # z choice based on subcatchment slope, except for 4
                                   # 4 is ARBITRARY
-                                  'z': np.array([0.5,0,0.6,0.4,-0.1]),
-                                  'depth': np.array([0.0,0.0,0.0])
+                                  'z': np.array([0.5,0.0,0.6,0.4,-0.1]),
+                                  'depth': np.array([0.0,0.0,0.0,0.0,0.0]),
+                                  # 0 - junction
+                                  # 1 - outfall
+                                  'type': np.array([0,0,0,0,1])
+                                  # 'subcatchmentCoupling': np.array([-1,-1,-1,-1,-1])
                                   })
             # calculate the lengths of each pipe
             for e in self.G.es:
@@ -165,6 +169,7 @@ class SewerGraph:
                 self.G.es[e.index]['length'] = np.linalg.norm(s - d)
                 print(self.G.es[e.index]['length'])
             # TODO: add offset height calculations
+            # Needs to be given a priori
             self.G.es['offsetHeight'] = [0.0 for _ in range(self.G.ecount())]
         else:
             self.G = ig.Graph(n=n,edges=[], directed=True)
@@ -186,6 +191,11 @@ class SewerGraph:
             time between initial time and desired end time
         rainfall : float
             average rainfall measured over the time [t,t+dt]
+
+        Returns:
+        --------
+        depths : list
+            Updated depths ordered by igraph id
 
         """
         def ode(t, x):
