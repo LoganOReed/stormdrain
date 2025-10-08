@@ -6,10 +6,11 @@ import random
 from .network import SubcatchmentGraph
 
 
+
 if __name__ == "__main__":
     rainfall = [0.0,0.5,1.0,0.75,0.5,0.25,0.0]
     rainfall = [e * 0.0254 for e in rainfall]
-    g = SubcatchmentGraph(3)
+    g = SubcatchmentGraph(3, 2)
     subcatchment = []
     for i in range(len(rainfall)):
         subcatchment.append(g.update(2*i,0.5,rainfall[i]))

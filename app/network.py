@@ -39,7 +39,7 @@ class SubcatchmentGraph:
                                   'depth': np.array([0.0,0.0,0.0])
                                   })
         else:
-            self.G = ig.Graph(n=n,edges=[[0,1],[1,2]], directed=True,
+            self.G = ig.Graph(n=n,edges=[(0,1),(1,2)], directed=True,
                               vertex_attrs={
                                   'area': np.array([10000.0,10000.0,10000.0]),
                                   'width': np.array([100.0,100.0,100.0]),
@@ -81,19 +81,20 @@ class SubcatchmentGraph:
             """
             y = np.zeros(self.G.vcount())
             outflow = np.zeros(self.G.vcount())
+            incomingRunoff = np.zeros(self.G.vcount())
             for i in self.G.topological_sorting():
                 # calculate incoming runoff, using top sorting to guarantee the previous runoffs are already computed
                 inEdges = self.G.vs[i].in_edges()
-                incomingRunoff = 0
                 for e in inEdges:
-                    incomingRunoff += e.source
+                    incomingRunoff[i] += self.G.vs['depth'][e.source]
 
                 # alpha in manning equation
                 a = (self.G.vs['width'][i] * np.power(self.G.vs['slope'][i], 0.5)) / (self.G.vs['area'][i] * self.G.vs['n'][i])
                 depth_above_invert = np.maximum(x[i] - self.G.vs['invert'][i], 0.0)
                 # outgoingRunoff
                 outflow[i] = a * np.power(depth_above_invert, 5/3)
-                y[i] = rainfall + incomingRunoff - outflow[i]
+                y[i] = rainfall + incomingRunoff[i] - outflow[i]
+            print(f"incomingRunoff: {incomingRunoff}")
             return y
     
         # NOTE: RK45 returns an iterator we need to use solve_ivp
