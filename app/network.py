@@ -5,6 +5,8 @@ import scipy as sc
 import random
 from .newton_bisection import findroot
 
+# TODO: create the lookup tables from appendix C in ch. 2 instead of computing directly
+
 
 
 # TODO: Create numpy docs for each function
@@ -186,6 +188,21 @@ class SewerGraph:
         # print(self.G.topological_sorting())
         # print(self.rainfall)
 
+    
+    def _circularFlowProperties(d, diam):
+        """Compute area, hydraulic radius, and velocity for given depth."""
+        if d <= 0:
+            return 0.0, 0.0, 0.0
+        
+        d = np.min(d, diam)
+        theta = 2 * np.arccos(1 - 2 * d / diam)
+        A = (np.power(diam,2) / 8) * (theta - np.sin(theta))
+        V = diam * theta / 2
+        R = A / V if V > 0 else 0
+        
+        return A, R, V
+
+
     def _steadyFlow(self, t, x):
         """
         TODO: List assumptions. Uses mannings equation to take the total inflow and write it as
@@ -208,6 +225,7 @@ class SewerGraph:
         Using Newton-Raphson.
         """
         pass
+
 
 
     def update(self, t, dt, rainfall):
