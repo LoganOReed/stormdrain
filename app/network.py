@@ -17,24 +17,7 @@ import random
         #                       },
         #                   directed=True)
 
-# TODO:
-# Functions:
-# 1. get_edge_weights - usually involves solving odes on node weights
-# 2. 
-class Graph:
-    """General Graph Structure, Parent of the three subgraphs."""
-    def __init__(self, name):
-        super(Graph, self).__init__()
-        random.seed(0)
-        self.G = ig.Graph.Erdos_Renyi(n=15, m=30, directed=False, loops=False)
-        self.G.to_directed(mode="acyclic")
-        self.G["name"] = name
-        # print(self.G.summary())
-        # print(self.G.topological_sorting())
-
-
-
-        
+       
 
 class SubcatchmentGraph:
     """General Graph Structure, Parent of the three subgraphs."""
@@ -52,8 +35,7 @@ class SubcatchmentGraph:
                               'depth': np.array([0.0,0.0,0.0])
                               })
         # Rainfall (in hours 0-6)
-        self.rainfall = [0.0,0.5,1.0,0.75,0.5,0.25,0.0]
-        self.rainfall = [e * 0.0254 for e in self.rainfall]
+
         # print(self.G.summary())
         # print(self.G.topological_sorting())
         # print(self.rainfall)
@@ -133,11 +115,13 @@ class SubcatchmentGraph:
 
 
 if __name__ == "__main__":
+    rainfall = [0.0,0.5,1.0,0.75,0.5,0.25,0.0]
+    rainfall = [e * 0.0254 for e in rainfall]
     g = SubcatchmentGraph(3)
     subcatchment = []
-    for i in range(len(g.rainfall)):
-        subcatchment.append(g.update(2*i,0.5,g.rainfall[i]))
-        subcatchment.append(g.update(2*i+1,0.5,g.rainfall[i]))
+    for i in range(len(rainfall)):
+        subcatchment.append(g.update(2*i,0.5,rainfall[i]))
+        subcatchment.append(g.update(2*i+1,0.5,rainfall[i]))
     print(f"list of depths at each time:{subcatchment}")
     # print(f"After 2 step: {g.G.vs['depth']}")
     ts = []
