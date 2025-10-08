@@ -29,8 +29,8 @@ class Graph:
         self.G = ig.Graph.Erdos_Renyi(n=15, m=30, directed=False, loops=False)
         self.G.to_directed(mode="acyclic")
         self.G["name"] = name
-        print(self.G.summary())
-        print(self.G.topological_sorting())
+        # print(self.G.summary())
+        # print(self.G.topological_sorting())
 
 
 
@@ -54,45 +54,76 @@ class SubcatchmentGraph:
         # Rainfall (in hours 0-6)
         self.rainfall = [0.0,0.5,1.0,0.75,0.5,0.25,0.0]
         self.rainfall = [e * 0.0254 for e in self.rainfall]
-        print(self.G.summary())
-        print(self.G.topological_sorting())
-        print(self.rainfall)
+        # print(self.G.summary())
+        # print(self.G.topological_sorting())
+        # print(self.rainfall)
 
-    # TODO: Write this
     def update(self, t, dt, rainfall):
         def ode(t, x):
             y = np.zeros(self.G.vcount())
             outflow = np.zeros(self.G.vcount())
             for i in range(self.G.vcount()):
                 a = (self.G.vs['width'][i] * np.power(self.G.vs['slope'][i], 0.5)) / (self.G.vs['area'][i] * self.G.vs['n'][i])
-                # Calculate depth above invert, ensuring it's non-negative
                 depth_above_invert = np.maximum(x[i] - self.G.vs['invert'][i], 0.0)
-                # Calculate outflow term
                 outflow[i] = a * np.power(depth_above_invert, 5/3)
                 y[i] = rainfall - outflow[i]
-            print(f"rhs: {y}")
-            print(f"outflow: {outflow}")
+            # print(f"rhs: {y}")
+            # print(f"outflow: {outflow}")
             return y
     
-        # Use solve_ivp instead of RK45 directly
+        # NOTE: RK45 returns an iterator we need to use solve_ivp
         solution = sc.integrate.solve_ivp(
             ode, 
             (t, t + dt), 
             self.G.vs['depth'], 
             method='RK45'
         )
-        
         self.G.vs['depth'] = solution.y[:, -1]
+        return solution.y[:,-1]
 
-
+    def visualize(self, times, depths):
+        """
+        Visualize depth over time for each subcatchment.
+        
+        Parameters:
+        -----------
+        times : list or array
+            Array of time points
+        depths : list of arrays
+            List where each element is an array of depths at that time point
+            Should have shape (n_timesteps, n_vertices)
+        """
+        depths_array = np.array(depths)
+        
+        plt.figure(figsize=(10, 6))
+        
+        for i in range(self.G.vcount()):
+            plt.plot(times, depths_array[:, i], 
+                    label=f'Subcatchment {i}', 
+                    marker='o', 
+                    linewidth=2)
+        
+        plt.xlabel('Time (hours)', fontsize=12)
+        plt.ylabel('Depth (m)', fontsize=12)
+        plt.title('Subcatchment Depth vs Time', fontsize=14, fontweight='bold')
+        plt.legend()
+        plt.grid(True, alpha=0.3)
+        plt.tight_layout()
+        plt.savefig(f"figures/test.png")
 
 
 
 if __name__ == "__main__":
     g = SubcatchmentGraph(3)
-    g.update(0,1,0.3)
-    print(f"After 1 step: {g.G.vs['depth']}")
-    g.update(1,2,0.5)
-    print(f"After 2 step: {g.G.vs['depth']}")
-    print("Dont call this directly :(")
+    subcatchment = []
+    for i in range(len(g.rainfall)):
+        subcatchment.append(g.update(2*i,0.5,g.rainfall[i]))
+        subcatchment.append(g.update(2*i+1,0.5,g.rainfall[i]))
+    print(f"list of depths at each time:{subcatchment}")
+    # print(f"After 2 step: {g.G.vs['depth']}")
+    ts = []
+    for i in range(14):
+        ts.append(i*0.5)
+    g.visualize(ts, subcatchment)
 
+# TODO: Create numpy docs for each function
