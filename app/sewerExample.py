@@ -14,6 +14,8 @@ if __name__ == "__main__":
 
 
     # Create plot for disconnected subcatchments
-    g = SewerGraph()
+    # first row is subcatchment index, second row is sewer(but should be street) index
+    subcatchmentCoupling = np.array([[0,1,2],[0,2,3]])
+    g = SewerGraph(subcatchmentCoupling)
     print(g.G.summary())
 

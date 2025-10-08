@@ -145,7 +145,7 @@ class SubcatchmentGraph:
 
 class SewerGraph:
     """Graph of Sewer portion of Hydraulic Network."""
-    def __init__(self, n=None):
+    def __init__(self, subcatchmentCoupling, n=None):
         super(SewerGraph, self).__init__()
         if n == None:
             self.G = ig.Graph(n=5,edges=[(0,1),(2,3),(3,1),(1,4)],directed=True,
@@ -158,11 +158,14 @@ class SewerGraph:
                                   'z': np.array([0.5,0,0.6,0.4,-0.1]),
                                   'depth': np.array([0.0,0.0,0.0])
                                   })
+            # calculate the lengths of each pipe
             for e in self.G.es:
                 s = np.array([self.G.vs[e.source]['x'], self.G.vs[e.source]['y'], self.G.vs[e.source]['z']])
                 d = np.array([self.G.vs[e.target]['x'], self.G.vs[e.target]['y'], self.G.vs[e.target]['z']])
                 self.G.es[e.index]['length'] = np.linalg.norm(s - d)
                 print(self.G.es[e.index]['length'])
+            # TODO: add offset height calculations
+            self.G.es['offsetHeight'] = [0.0 for _ in range(self.G.ecount())]
         else:
             self.G = ig.Graph(n=n,edges=[], directed=True)
         # Rainfall (in hours 0-6)
