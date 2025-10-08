@@ -5,6 +5,9 @@ import scipy as sc
 import random
 
 
+
+# TODO: Create numpy docs for each function
+
         # self.G = ig.Graph(n=5, 
         #                   edges=[[0,1],[2,3],[3,1],[1,4]],
         #                   edge_attrs={
@@ -21,19 +24,32 @@ import random
 
 class SubcatchmentGraph:
     """General Graph Structure, Parent of the three subgraphs."""
-    def __init__(self, n):
+    def __init__(self, n, vertex_attrs=None):
         super(SubcatchmentGraph, self).__init__()
-        self.G = ig.Graph(n=n,edges=[],directed=True,
-                          vertex_attrs={
-                              'area': np.array([10000.0,10000.0,10000.0]),
-                              'width': np.array([100.0,100.0,100.0]),
-                              'slope': np.array([0.005,0.002,0.004]),
-                              'n': np.array([0.017,0.017,0.017]),
-                              'invert': np.array([0.0,0.016,0.035]),
-                              'x': np.array([100,200,200]),
-                              'y': np.array([100,100,0]),
-                              'depth': np.array([0.0,0.0,0.0])
-                              })
+        if vertex_attrs == None:
+            self.G = ig.Graph(n=n,edges=[],directed=True,
+                              vertex_attrs={
+                                  'area': np.array([10000.0,10000.0,10000.0]),
+                                  'width': np.array([100.0,100.0,100.0]),
+                                  'slope': np.array([0.005,0.002,0.004]),
+                                  'n': np.array([0.017,0.017,0.017]),
+                                  'invert': np.array([0.0,0.016,0.035]),
+                                  'x': np.array([100,200,200]),
+                                  'y': np.array([100,100,0]),
+                                  'depth': np.array([0.0,0.0,0.0])
+                                  })
+        else:
+            self.G = ig.Graph(n=n,edges=[[0,1],[1,2]], directed=True,
+                              vertex_attrs={
+                                  'area': np.array([10000.0,10000.0,10000.0]),
+                                  'width': np.array([100.0,100.0,100.0]),
+                                  'slope': np.array([0.005,0.002,0.004]),
+                                  'n': np.array([0.017,0.017,0.017]),
+                                  'invert': np.array([0.0,0.016,0.035]),
+                                  'x': np.array([100,200,200]),
+                                  'y': np.array([100,100,0]),
+                                  'depth': np.array([0.0,0.0,0.0])
+                                  })
         # Rainfall (in hours 0-6)
 
         # print(self.G.summary())
@@ -65,11 +81,19 @@ class SubcatchmentGraph:
             """
             y = np.zeros(self.G.vcount())
             outflow = np.zeros(self.G.vcount())
-            for i in range(self.G.vcount()):
+            for i in self.G.topological_sorting():
+                # calculate incoming runoff, using top sorting to guarantee the previous runoffs are already computed
+                inEdges = self.G.vs[i].in_edges()
+                incomingRunoff = 0
+                for e in inEdges:
+                    incomingRunoff += e.source
+
+                # alpha in manning equation
                 a = (self.G.vs['width'][i] * np.power(self.G.vs['slope'][i], 0.5)) / (self.G.vs['area'][i] * self.G.vs['n'][i])
                 depth_above_invert = np.maximum(x[i] - self.G.vs['invert'][i], 0.0)
+                # outgoingRunoff
                 outflow[i] = a * np.power(depth_above_invert, 5/3)
-                y[i] = rainfall - outflow[i]
+                y[i] = rainfall + incomingRunoff - outflow[i]
             return y
     
         # NOTE: RK45 returns an iterator we need to use solve_ivp
@@ -115,18 +139,5 @@ class SubcatchmentGraph:
 
 
 if __name__ == "__main__":
-    rainfall = [0.0,0.5,1.0,0.75,0.5,0.25,0.0]
-    rainfall = [e * 0.0254 for e in rainfall]
-    g = SubcatchmentGraph(3)
-    subcatchment = []
-    for i in range(len(rainfall)):
-        subcatchment.append(g.update(2*i,0.5,rainfall[i]))
-        subcatchment.append(g.update(2*i+1,0.5,rainfall[i]))
-    print(f"list of depths at each time:{subcatchment}")
-    # print(f"After 2 step: {g.G.vs['depth']}")
-    ts = []
-    for i in range(14):
-        ts.append(i*0.5)
-    g.visualize(ts, subcatchment)
+    print("Dont call this directly :(")
 
-# TODO: Create numpy docs for each function
