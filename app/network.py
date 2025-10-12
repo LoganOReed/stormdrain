@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import scipy as sc
 import random
+from pprint import pprint
 from .newton_bisection import findroot
 
 # TODO: create the lookup tables from appendix C in ch. 2 instead of computing directly
@@ -176,10 +177,25 @@ class SewerGraph:
                 if slope < 0.0001:
                     print(f"WARNING: slope for edge {e} is too small.")
                 self.G.es[e.index]['slope'] = self.G.vs[e.source]['z'] - self.G.vs[e.target]['z']
-            print(self.G.es['slope'])
+            # print(self.G.es['slope'])
             # TODO: add offset height calculations
             # Needs to be given a priori
             self.G.es['offsetHeight'] = [0.0 for _ in range(self.G.ecount())]
+
+            # Geometry of Pipes (Circular in this case)
+            self.G.es['diam'] = [0.5,0.5,0.8,1.0]
+            # TODO: Decide if this should be stored (or computed) elsewhere
+            self.G.es['areaFull'] = 0.25*np.pi*np.power(self.G.es['diam'],2)
+            self.G.es['hydraulicRadiusFull'] = np.multiply(0.25,self.G.es['diam'])
+            self.G.es['sectionFactorFull'] = self.G.es['areaFull']*np.power(self.G.es['hydraulicRadiusFull'],2/3)
+
+            # Create plot to test circular functions
+            # TODO: Add plot generation for theta between 0 and pi
+            # Calculate all functions
+            for i in range(4):
+                self.graphGeometry(i,file=f"circularPipeGeometry{i}")
+
+
         else:
             self.G = ig.Graph(n=n,edges=[], directed=True)
         # Rainfall (in hours 0-6)
@@ -187,22 +203,13 @@ class SewerGraph:
         # print(self.G.summary())
         # print(self.G.topological_sorting())
         # print(self.rainfall)
+        
+        # NOTE: Testing functions
+        pprint(f"Angle From Area: {self._angleFromArea(np.multiply([0.3,0.3,0.2,0.2],self.G.es['areaFull']))}")
+        theta = np.multiply([0.3,0.3,0.2,0.2],self.G.es['areaFull'])
+        # pprint(f"Depth From Angle: {self._depthFromAngle(theta)}")
 
     
-    def _circularFlowProperties(d, diam):
-        """Compute area, hydraulic radius, and velocity for given depth."""
-        if d <= 0:
-            return 0.0, 0.0, 0.0
-        
-        d = np.min(d, diam)
-        theta = 2 * np.arccos(1 - 2 * d / diam)
-        A = (np.power(diam,2) / 8) * (theta - np.sin(theta))
-        V = diam * theta / 2
-        R = A / V if V > 0 else 0
-        
-        return A, R, V
-
-
     def _steadyFlow(self, t, x):
         """
         TODO: List assumptions. Uses mannings equation to take the total inflow and write it as
@@ -226,8 +233,50 @@ class SewerGraph:
         """
         pass
 
+    # TODO: Switch over to lookup tables
+    def _angleFromArea(self, area):
+        """computes the central angle by cross sectional flow area. A = A_{full} (theta - sin theta) / 2 pi"""
+        a = np.divide(area, self.G.es['areaFull'])
+        theta = 0.031715 - 12.79384 * a + 8.28479 * np.power(a,0.5)
+        dtheta = 1e15
+        while np.any(np.abs(dtheta) > 0.0001):
+            denom = 1 - np.cos(theta)
+            if np.any(denom == 0):
+                raise ValueError("Division by zero: getAngleFromArea theta is 0")
+            dtheta = 2 * np.pi * a - (theta - np.sin(theta)) / (1 - np.cos(theta))
+            theta += dtheta
+            pprint(dtheta)
+
+        return theta 
+
+    def _areaFromAngle(self, theta):
+        return np.multiply(self.G.es['areaFull'],(theta - np.sin(theta))) / (2*np.pi)
+
+    def _depth(self, theta):
+        depth = 0.5*np.multiply(self.G.es['diam'] , (1 - np.cos(theta / 2)))
+        return depth
+
+    def _sectionFactor(self, theta):
+        return np.multiply(self.G.es['sectionFactorFull'] , np.power(theta - np.sin(theta), 5/3)) / (2*np.pi * np.power(theta,2/3))
+
+    def _wettedPerimeter(self, theta):
+        return 0.5 * np.multiply(theta , self.G.es['diam'])
+
+    def _wettedPerimeterDerivative(self, theta):
+        return np.divide(4, np.multiply(self.G.es['diam'],(1 - np.cos(theta))))
+
+    def _hydraulicRadius(self, theta):
+        return np.divide(self._areaFromAngle(theta), self._wettedPerimeter(theta))
+
+    def _sectionFactorDerivative(self, theta):
+        return ((5/3) - (2/3) * np.multiply(self._wettedPerimeterDerivative(theta) , self._hydraulicRadius(theta)))* np.power(self._hydraulicRadius(theta),2/3)
 
 
+
+       
+
+
+    # TODO: Add "Analytical Functions for Circular Cross Sections"
     def update(self, t, dt, rainfall):
         """
         Updates the attributes of the network using the ode defined in "ode".
@@ -284,6 +333,98 @@ class SewerGraph:
         self.G.vs['depth'] = solution.y[:, -1]
         return solution.y[:,-1]
 
+    def graphGeometry(self, id, file=None):
+        theta = np.linspace(0.01, 2*np.pi - 0.01, 1000)
+        area = [self._areaFromAngle(t)[id] for t in theta]
+        d = [self._depth(t)[id] for t in theta]
+        sf = [self._sectionFactor(t)[id] for t in theta]
+        wp = [self._wettedPerimeter(t)[id] for t in theta]
+        hr = [self._hydraulicRadius(t)[id] for t in theta]
+        wp_deriv = [self._wettedPerimeterDerivative(t)[id] for t in theta]
+        sf_deriv = [self._sectionFactorDerivative(t)[id] for t in theta]
+
+# Create subplots
+        fig, axes = plt.subplots(3, 3, figsize=(15, 12))
+        fig.suptitle(f'Circular Pipe Functions vs Central Angle θ\n', 
+                     fontsize=16, fontweight='bold')
+
+# Plot 1: Area
+        axes[0, 0].plot(theta, area, 'b-', linewidth=2)
+        axes[0, 0].set_xlabel('θ (radians)')
+        axes[0, 0].set_ylabel('Area (m²)')
+        axes[0, 0].set_title('Cross-sectional Area')
+        axes[0, 0].grid(True, alpha=0.3)
+        axes[0, 0].axhline(y=self.G.es['areaFull'][0], color='r', linestyle='--', alpha=0.5, label='Full Area')
+        axes[0, 0].legend()
+
+# Plot 2: Depth
+        axes[0, 1].plot(theta, d, 'g-', linewidth=2)
+        axes[0, 1].set_xlabel('θ (radians)')
+        axes[0, 1].set_ylabel('Depth (m)')
+        axes[0, 1].set_title('Flow Depth')
+        axes[0, 1].grid(True, alpha=0.3)
+        axes[0, 1].axhline(y=self.G.es['diam'][id], color='r', linestyle='--', alpha=0.5, label='Full Depth')
+        axes[0, 1].legend()
+
+# Plot 3: Section Factor
+        axes[0, 2].plot(theta, sf, 'r-', linewidth=2)
+        axes[0, 2].set_xlabel('θ (radians)')
+        axes[0, 2].set_ylabel('Section Factor (m^(8/3))')
+        axes[0, 2].set_title('Section Factor')
+        axes[0, 2].grid(True, alpha=0.3)
+
+# Plot 4: Wetted Perimeter
+        axes[1, 0].plot(theta, wp, 'c-', linewidth=2)
+        axes[1, 0].set_xlabel('θ (radians)')
+        axes[1, 0].set_ylabel('Wetted Perimeter (m)')
+        axes[1, 0].set_title('Wetted Perimeter')
+        axes[1, 0].grid(True, alpha=0.3)
+
+# Plot 5: Hydraulic Radius
+        axes[1, 1].plot(theta, hr, 'm-', linewidth=2)
+        axes[1, 1].set_xlabel('θ (radians)')
+        axes[1, 1].set_ylabel('Hydraulic Radius (m)')
+        axes[1, 1].set_title('Hydraulic Radius')
+        axes[1, 1].grid(True, alpha=0.3)
+        axes[1, 1].axhline(y=self.G.es['hydraulicRadiusFull'][id], color='r', linestyle='--', alpha=0.5, label='Full')
+        axes[1, 1].legend()
+
+# Plot 6: Wetted Perimeter Derivative
+        axes[1, 2].plot(theta, wp_deriv, 'orange', linewidth=2)
+        axes[1, 2].set_xlabel('θ (radians)')
+        axes[1, 2].set_ylabel('dP/dθ')
+        axes[1, 2].set_title('Wetted Perimeter Derivative')
+        axes[1, 2].grid(True, alpha=0.3)
+
+# Plot 7: Section Factor Derivative
+        axes[2, 0].plot(theta, sf_deriv, 'purple', linewidth=2)
+        axes[2, 0].set_xlabel('θ (radians)')
+        axes[2, 0].set_ylabel('dSF/dθ')
+        axes[2, 0].set_title('Section Factor Derivative')
+        axes[2, 0].grid(True, alpha=0.3)
+
+# Plot 8: Fill Ratio (Area/AreaFull)
+        fill_ratio = area / self.G.es['areaFull'][id]
+        axes[2, 1].plot(theta, fill_ratio, 'brown', linewidth=2)
+        axes[2, 1].set_xlabel('θ (radians)')
+        axes[2, 1].set_ylabel('Fill Ratio')
+        axes[2, 1].set_title('Area Fill Ratio (A/A_full)')
+        axes[2, 1].grid(True, alpha=0.3)
+        axes[2, 1].set_ylim([0, 1.1])
+
+# Plot 9: Depth vs Area (useful relationship)
+        axes[2, 2].plot(area, d, 'navy', linewidth=2)
+        axes[2, 2].set_xlabel('Area (m²)')
+        axes[2, 2].set_ylabel('Depth (m)')
+        axes[2, 2].set_title('Depth vs Area Relationship')
+        axes[2, 2].grid(True, alpha=0.3)
+
+        plt.tight_layout()
+        if file == None:
+            file = 'circularPipeFunctions'
+        plt.savefig(f'figures/{file}.png', dpi=300, bbox_inches='tight')
+
+
     def visualize(self, times, depths, fileName=None):
         """
         Visualize depth over time for each subcatchment.
@@ -316,6 +457,8 @@ class SewerGraph:
             fileName = "test"
         plt.savefig(f"figures/{fileName}.png")
 
+
+    
 
 
 
