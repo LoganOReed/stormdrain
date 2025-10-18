@@ -6,6 +6,8 @@ import random
 from pprint import pprint
 from .newton_bisection import findroot
 
+# TODO: Create enum of desired drains
+# TODO: Have v0 depend on enum parameter
 def getCapturedFlow(Q, A, Sx, L, W):
     """Computes Flow Captured from a P-50x100 drain on grade where street has slope Sx, A is cross sectional area, Q is flow, L,W are length and width of drain."""
     # NOTE: This is specific to P-50x100, to use other drains change this
