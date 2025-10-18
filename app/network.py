@@ -189,6 +189,11 @@ class SewerGraph:
             self.G.es['hydraulicRadiusFull'] = np.multiply(0.25,self.G.es['diam'])
             self.G.es['sectionFactorFull'] = self.G.es['areaFull']*np.power(self.G.es['hydraulicRadiusFull'],2/3)
 
+            # self.G.es['flow'] = [0.0,0.0,0.0,0.0]
+            self.G.es['flow'] = [0.1,0.2,0.1,0.1]
+
+            self._steadyFlow(0,[0.1,0.1,0.1,0.1])
+
             # Create plot to test circular functions
             # TODO: Add plot generation for theta between 0 and pi
             # Calculate all functions
@@ -204,11 +209,7 @@ class SewerGraph:
         # print(self.G.topological_sorting())
         # print(self.rainfall)
         
-        # NOTE: Testing functions
-        pprint(f"Angle From Area: {self._angleFromArea(np.multiply([0.3,0.3,0.2,0.2],self.G.es['areaFull']))}")
-        theta = np.multiply([0.3,0.3,0.2,0.2],self.G.es['areaFull'])
-        # pprint(f"Depth From Angle: {self._depthFromAngle(theta)}")
-
+        
     
     def _steadyFlow(self, t, x):
         """
@@ -222,7 +223,21 @@ class SewerGraph:
         x : list(float)
             list of depths
         """
-        pass
+        #1. check acyclic
+        if not self.G.is_dag():
+            raise ValueError("Sewer Network must be acyclic.")
+
+        #2. top sort
+        order = self.G.topological_sorting()
+
+        for nid in order:
+            #3. Get inflows
+            incomingEdges = self.G.incident(nid, mode='in')
+            pprint(f"incoming: {incomingEdges}")
+            inflow = np.sum([self.G.es['flow'][e] for e in incomingEdges])
+            pprint(f"inflow: {inflow}")
+
+
 
 
     def _getDepthCircularPipe(self, q, diam, n, s):
@@ -232,6 +247,23 @@ class SewerGraph:
         Using Newton-Raphson.
         """
         pass
+
+    def _manning(self, area, hydraulicRadius, n, slope):
+        """ Computes Manning from area, radius, n, slope."""
+        if area <= 0 or hydraulicRadius <= 0 or slope <= 0:
+            return 0.0
+
+        return (1/n)* area * np.power(hydraulicRadius,2/3) * np.power(slope, 0.5)
+
+
+    def _solveAverageDepth(self, flow):
+        if flow <= 0:
+            return 0.0
+        if slope <= 0:
+            slope = 0.0001
+
+        if flow >= self.G.es['']
+
 
     # TODO: Switch over to lookup tables
     def _angleFromArea(self, area):
@@ -245,7 +277,7 @@ class SewerGraph:
                 raise ValueError("Division by zero: getAngleFromArea theta is 0")
             dtheta = 2 * np.pi * a - (theta - np.sin(theta)) / (1 - np.cos(theta))
             theta += dtheta
-            pprint(dtheta)
+            # pprint(dtheta)
 
         return theta 
 
@@ -343,12 +375,12 @@ class SewerGraph:
         wp_deriv = [self._wettedPerimeterDerivative(t)[id] for t in theta]
         sf_deriv = [self._sectionFactorDerivative(t)[id] for t in theta]
 
-# Create subplots
+        # Create subplots
         fig, axes = plt.subplots(3, 3, figsize=(15, 12))
         fig.suptitle(f'Circular Pipe Functions vs Central Angle θ\n', 
                      fontsize=16, fontweight='bold')
 
-# Plot 1: Area
+        # Plot 1: Area
         axes[0, 0].plot(theta, area, 'b-', linewidth=2)
         axes[0, 0].set_xlabel('θ (radians)')
         axes[0, 0].set_ylabel('Area (m²)')
@@ -357,7 +389,7 @@ class SewerGraph:
         axes[0, 0].axhline(y=self.G.es['areaFull'][0], color='r', linestyle='--', alpha=0.5, label='Full Area')
         axes[0, 0].legend()
 
-# Plot 2: Depth
+        # Plot 2: Depth
         axes[0, 1].plot(theta, d, 'g-', linewidth=2)
         axes[0, 1].set_xlabel('θ (radians)')
         axes[0, 1].set_ylabel('Depth (m)')
@@ -366,21 +398,21 @@ class SewerGraph:
         axes[0, 1].axhline(y=self.G.es['diam'][id], color='r', linestyle='--', alpha=0.5, label='Full Depth')
         axes[0, 1].legend()
 
-# Plot 3: Section Factor
+        # Plot 3: Section Factor
         axes[0, 2].plot(theta, sf, 'r-', linewidth=2)
         axes[0, 2].set_xlabel('θ (radians)')
         axes[0, 2].set_ylabel('Section Factor (m^(8/3))')
         axes[0, 2].set_title('Section Factor')
         axes[0, 2].grid(True, alpha=0.3)
 
-# Plot 4: Wetted Perimeter
+        # Plot 4: Wetted Perimeter
         axes[1, 0].plot(theta, wp, 'c-', linewidth=2)
         axes[1, 0].set_xlabel('θ (radians)')
         axes[1, 0].set_ylabel('Wetted Perimeter (m)')
         axes[1, 0].set_title('Wetted Perimeter')
         axes[1, 0].grid(True, alpha=0.3)
 
-# Plot 5: Hydraulic Radius
+        # Plot 5: Hydraulic Radius
         axes[1, 1].plot(theta, hr, 'm-', linewidth=2)
         axes[1, 1].set_xlabel('θ (radians)')
         axes[1, 1].set_ylabel('Hydraulic Radius (m)')
@@ -389,21 +421,21 @@ class SewerGraph:
         axes[1, 1].axhline(y=self.G.es['hydraulicRadiusFull'][id], color='r', linestyle='--', alpha=0.5, label='Full')
         axes[1, 1].legend()
 
-# Plot 6: Wetted Perimeter Derivative
+        # Plot 6: Wetted Perimeter Derivative
         axes[1, 2].plot(theta, wp_deriv, 'orange', linewidth=2)
         axes[1, 2].set_xlabel('θ (radians)')
         axes[1, 2].set_ylabel('dP/dθ')
         axes[1, 2].set_title('Wetted Perimeter Derivative')
         axes[1, 2].grid(True, alpha=0.3)
 
-# Plot 7: Section Factor Derivative
+        # Plot 7: Section Factor Derivative
         axes[2, 0].plot(theta, sf_deriv, 'purple', linewidth=2)
         axes[2, 0].set_xlabel('θ (radians)')
         axes[2, 0].set_ylabel('dSF/dθ')
         axes[2, 0].set_title('Section Factor Derivative')
         axes[2, 0].grid(True, alpha=0.3)
 
-# Plot 8: Fill Ratio (Area/AreaFull)
+        # Plot 8: Fill Ratio (Area/AreaFull)
         fill_ratio = area / self.G.es['areaFull'][id]
         axes[2, 1].plot(theta, fill_ratio, 'brown', linewidth=2)
         axes[2, 1].set_xlabel('θ (radians)')
@@ -412,7 +444,7 @@ class SewerGraph:
         axes[2, 1].grid(True, alpha=0.3)
         axes[2, 1].set_ylim([0, 1.1])
 
-# Plot 9: Depth vs Area (useful relationship)
+        # Plot 9: Depth vs Area (useful relationship)
         axes[2, 2].plot(area, d, 'navy', linewidth=2)
         axes[2, 2].set_xlabel('Area (m²)')
         axes[2, 2].set_ylabel('Depth (m)')
