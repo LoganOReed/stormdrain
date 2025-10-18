@@ -18,5 +18,7 @@ from .newton_bisection import findroot
 
 
 if __name__ == "__main__":
+    subcatchment = SubcatchmentGraph("largerExample")
+    subcatchment.visualize()
     sewer = SewerGraph("largerExample")
 

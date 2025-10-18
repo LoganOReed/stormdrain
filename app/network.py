@@ -29,10 +29,10 @@ from .newton_bisection import findroot
 
 class SubcatchmentGraph:
     """General Graph Structure, Parent of the three subgraphs."""
-    def __init__(self, n, vertex_attrs=None):
+    def __init__(self, file=None):
         super(SubcatchmentGraph, self).__init__()
-        if vertex_attrs == None:
-            self.G = ig.Graph(n=n,edges=[],directed=True,
+        if file == None:
+            self.G = ig.Graph(n=3,edges=[],directed=True,
                               vertex_attrs={
                                   'area': np.array([10000.0,10000.0,10000.0]),
                                   'width': np.array([100.0,100.0,100.0]),
@@ -45,23 +45,54 @@ class SubcatchmentGraph:
                                   'depth': np.array([0.0,0.0,0.0])
                                   })
         else:
-            self.G = ig.Graph(n=n,edges=[(0,1),(1,2)], directed=True,
-                              vertex_attrs={
-                                  'area': np.array([10000.0,10000.0,10000.0]),
-                                  'width': np.array([100.0,100.0,100.0]),
-                                  'slope': np.array([0.005,0.002,0.004]),
-                                  'n': np.array([0.017,0.017,0.017]),
-                                  'invert': np.array([0.0,0.016,0.035]),
-                                  'x': np.array([100,200,200]),
-                                  'y': np.array([100,100,0]),
-                                  'z': np.array([0,0,0]),
-                                  'depth': np.array([0.0,0.0,0.0])
-                                  })
-        # Rainfall (in hours 0-6)
+            # TODO: Make csv also include subcatchment edges
+            data = pd.read_csv(f"data/{file}.csv")
+            data = data[data["type"].str.contains("SUBCATCHMENT")]
+            n = data.shape[0]
+            # pprint(n)
+            # pprint(data["type"])
+            # pprint(data["x"].astype(float))
+            # pprint(data)
+            # pprint(data["type"].str.contains("OUTFALL").astype(int))
 
-        # print(self.G.summary())
-        # print(self.G.topological_sorting())
-        # print(self.rainfall)
+            # Needed to create edges
+            edges = []
+            # TODO: See above todo. will need this stuff for subcatchment edges
+            # mapToID = []
+            # i = 0
+            # for _, row in data.iterrows():
+            #     mapToID.append((row["id"],i))
+            #     i = i+1
+            #
+            #
+            #
+            # # Creates the edges by translating the node id's in the csv into 0-indexed sewer nodes
+            # for _, row in data.iterrows():
+            #     # pprint(f"{index}, {row["id"]}")
+            #     if row["outgoing"] != -1:
+            #         id = row["id"]
+            #         outgoing = row["outgoing"]
+            #         for pair in mapToID:
+            #             if pair[0] == id:
+            #                 id = pair[1]
+            #             if pair[0] == outgoing:
+            #                 outgoing = pair[1]
+            #         edges.append( (id, outgoing))
+
+            self.G = ig.Graph(n=n,edges=edges,directed=True,
+                  vertex_attrs={
+                      'coupledID': np.array(data["id"].astype(int))
+                      'invert': np.zeros(n),
+                      'x': np.array(data["x"].astype(float)),
+                      'y': np.array(data["y"].astype(float)),
+                      'z': np.array(data["z"].astype(float)),
+                      'area': np.array([10000.0,10000.0,10000.0]),
+                      'width': np.array([100.0,100.0,100.0]),
+                      'slope': np.array(data["slope"].astype(float)),
+                      'n': np.array([0.017 for _ in range(n)]),
+                      'depth': np.zeros(n),
+                      'hydraulicCoupling': np.array(data["outgoing"].astype(int))
+                      })
 
     def update(self, t, dt, rainfall):
         """
@@ -237,6 +268,7 @@ class SewerGraph:
 
             self.G = ig.Graph(n=n,edges=edges,directed=True,
                   vertex_attrs={
+                      'coupledID': np.array(data["id"].astype(int))
                       'invert': np.zeros(n),
                       'x': np.array(data["x"].astype(float)),
                       'y': np.array(data["y"].astype(float)),
