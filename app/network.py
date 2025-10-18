@@ -2,6 +2,7 @@ import igraph as ig
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy as sc
+import pandas as pd
 import random
 from pprint import pprint
 from .newton_bisection import findroot
@@ -149,9 +150,9 @@ class SubcatchmentGraph:
 
 class SewerGraph:
     """Graph of Sewer portion of Hydraulic Network."""
-    def __init__(self, n=None):
+    def __init__(self, file=None):
         super(SewerGraph, self).__init__()
-        if n == None:
+        if file == None:
             self.G = ig.Graph(n=5,edges=[(0,1),(2,3),(3,1),(1,4)],directed=True,
                               vertex_attrs={
                                   'invert': np.array([0.0,0.016,0.035]),
@@ -202,7 +203,82 @@ class SewerGraph:
 
 
         else:
-            self.G = ig.Graph(n=n,edges=[], directed=True)
+            data = pd.read_csv(f"data/{file}.csv")
+            data = data[data["type"].str.contains("SEWER")]
+            n = data.shape[0]
+            # pprint(n)
+            # pprint(data["type"])
+            # pprint(data["x"].astype(float))
+            # pprint(data)
+            # pprint(data["type"].str.contains("OUTFALL").astype(int))
+
+            # Needed to create edges
+            edges = []
+            mapToID = []
+            i = 0
+            for _, row in data.iterrows():
+                mapToID.append((row["id"],i))
+                i = i+1
+
+
+
+            # Creates the edges by translating the node id's in the csv into 0-indexed sewer nodes
+            for _, row in data.iterrows():
+                # pprint(f"{index}, {row["id"]}")
+                if row["outgoing"] != -1:
+                    id = row["id"]
+                    outgoing = row["outgoing"]
+                    for pair in mapToID:
+                        if pair[0] == id:
+                            id = pair[1]
+                        if pair[0] == outgoing:
+                            outgoing = pair[1]
+                    edges.append( (id, outgoing))
+
+            self.G = ig.Graph(n=n,edges=edges,directed=True,
+                  vertex_attrs={
+                      'invert': np.zeros(n),
+                      'x': np.array(data["x"].astype(float)),
+                      'y': np.array(data["y"].astype(float)),
+                      'z': np.array(data["z"].astype(float)),
+                      'depth': np.zeros(n),
+                      # 0 - junction
+                      # 1 - outfall
+                      'type': np.array(data["type"].str.contains("OUTFALL").astype(int))
+                      # TODO: I need to decide if coupling occurs at this level or the level above
+                      # 'subcatchmentCoupling': np.array([-1,-1,-1,-1,-1])
+                      })
+            # calculate the lengths of each pipe
+            for e in self.G.es:
+                s = np.array([self.G.vs[e.source]['x'], self.G.vs[e.source]['y'], self.G.vs[e.source]['z']])
+                d = np.array([self.G.vs[e.target]['x'], self.G.vs[e.target]['y'], self.G.vs[e.target]['z']])
+                self.G.es[e.index]['length'] = np.linalg.norm(s - d)
+            # calculate the slope of each pipe
+            for e in self.G.es:
+                slope = self.G.vs[e.source]['z'] - self.G.vs[e.target]['z']
+                if slope < 0.0001:
+                    print(f"WARNING: slope for edge ({e.source}, {e.target}) is too small.")
+                    print(f"{e.source}: ({self.G.vs[e.source]['x']}, {self.G.vs[e.source]['y']}, {self.G.vs[e.source]['z']})")
+                    print(f"{e.target}: ({self.G.vs[e.target]['x']}, {self.G.vs[e.target]['y']}, {self.G.vs[e.target]['z']})")
+                self.G.es[e.index]['slope'] = self.G.vs[e.source]['z'] - self.G.vs[e.target]['z']
+            # pprint(f"Slopes: {self.G.es['slope']}")
+            # pprint(f"Length: {self.G.es['length']}")
+            # TODO: add offset height calculations
+            # Needs to be given a priori
+            self.G.es['offsetHeight'] = [0.0 for _ in range(self.G.ecount())]
+
+            # Geometry of Pipes (Circular in this case)
+            self.G.es['diam'] = [0.5 for _ in self.G.es]
+            # pprint(f"Diam: {self.G.es['diam']}")
+            # TODO: Decide if this should be stored (or computed) elsewhere
+            self.G.es['areaFull'] = 0.25*np.pi*np.power(self.G.es['diam'],2)
+            self.G.es['hydraulicRadiusFull'] = np.multiply(0.25,self.G.es['diam'])
+            self.G.es['sectionFactorFull'] = self.G.es['areaFull']*np.power(self.G.es['hydraulicRadiusFull'],2/3)
+
+            self.G.es['flow'] = np.zeros(self.G.ecount())
+            # pprint(self.G.summary())
+
+            # self._steadyFlow(0,[0.1,0.1,0.1,0.1])
         # Rainfall (in hours 0-6)
 
         # print(self.G.summary())
@@ -262,7 +338,7 @@ class SewerGraph:
         if slope <= 0:
             slope = 0.0001
 
-        if flow >= self.G.es['']
+        # if flow >= self.G.es['']
 
 
     # TODO: Switch over to lookup tables

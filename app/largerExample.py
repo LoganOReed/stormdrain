@@ -9,6 +9,7 @@ if platform == "linux":
 import matplotlib.pyplot as plt
 import scipy as sc
 import random
+import csv
 from pprint import pprint
 from .network import SubcatchmentGraph, SewerGraph
 from .newton_bisection import findroot
@@ -17,4 +18,5 @@ from .newton_bisection import findroot
 
 
 if __name__ == "__main__":
-    pprint("Hello")
+    sewer = SewerGraph("largerExample")
+
