@@ -23,6 +23,12 @@ if __name__ == "__main__":
     rainfall = [e * 0.0254 for e in rainfall]
 
     subcatchment = SubcatchmentGraph("largerExample")
+    # pprint(subcatchment.hydraulicCoupling)
+    # pprint(subcatchment.G.vs['coupledID'])
+    # pprint(subcatchment.update(2,0.5,rainfall[3]))
+    sewer = SewerGraph("largerExample", testingAsStreet=True)
+
+    # TODO: Have subcatchment coupling happen by passing hydraulicCoupling and runoff to sewer update function
 
 
 
@@ -31,13 +37,12 @@ if __name__ == "__main__":
     for i in range(len(rainfall)):
         scs.append(subcatchment.update(2*i,0.5,rainfall[i]))
         scs.append(subcatchment.update(2*i+1,0.5,rainfall[i]))
-    print(f"list of depths at each time:{scs}")
+    # print(f"list of depths at each time:{scs}")
     # print(f"After 2 step: {g.G.vs['depth']}")
     ts = []
     for i in range(2*len(rainfall)):
         ts.append(i*0.5)
     subcatchment.visualize(ts, scs, "disconnected")
-
-
-    sewer = SewerGraph("largerExample")
-
+    
+    
+    #

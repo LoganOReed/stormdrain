@@ -79,6 +79,7 @@ class SubcatchmentGraph:
             #                 outgoing = pair[1]
             #         edges.append( (id, outgoing))
 
+            self.hydraulicCoupling = np.array(data["outgoing"].astype(int))
             self.G = ig.Graph(n=n,edges=edges,directed=True,
                   vertex_attrs={
                       'coupledID': np.array(data["id"].astype(int)),
@@ -91,7 +92,6 @@ class SubcatchmentGraph:
                       'slope': np.array(data["slope"].astype(float)),
                       'n': np.array([0.017 for _ in range(n)]),
                       'depth': np.zeros(n),
-                      'hydraulicCoupling': np.array(data["outgoing"].astype(int))
                       })
 
     def update(self, t, dt, rainfall):
@@ -132,7 +132,7 @@ class SubcatchmentGraph:
                 # outgoingRunoff
                 outflow[i] = a * np.power(depth_above_invert, 5/3)
                 y[i] = rainfall + incomingRunoff[i] - outflow[i]
-            print(f"incomingRunoff: {incomingRunoff}")
+            # print(f"incomingRunoff: {incomingRunoff}")
             return y
     
         # NOTE: RK45 returns an iterator we need to use solve_ivp
@@ -181,7 +181,7 @@ class SubcatchmentGraph:
 
 class SewerGraph:
     """Graph of Sewer portion of Hydraulic Network."""
-    def __init__(self, file=None):
+    def __init__(self, file=None, testingAsStreet=False):
         super(SewerGraph, self).__init__()
         if file == None:
             self.G = ig.Graph(n=5,edges=[(0,1),(2,3),(3,1),(1,4)],directed=True,
@@ -231,11 +231,12 @@ class SewerGraph:
             # Calculate all functions
             for i in range(4):
                 self.graphGeometry(i,file=f"circularPipeGeometry{i}")
-
-
         else:
             data = pd.read_csv(f"data/{file}.csv")
-            data = data[data["type"].str.contains("SEWER")]
+            if testingAsStreet:
+                data = data[data["type"].str.contains("STREET")]
+            else:
+                data = data[data["type"].str.contains("SEWER")]
             n = data.shape[0]
             # pprint(n)
             # pprint(data["type"])
@@ -265,6 +266,8 @@ class SewerGraph:
                         if pair[0] == outgoing:
                             outgoing = pair[1]
                     edges.append( (id, outgoing))
+
+
 
             self.G = ig.Graph(n=n,edges=edges,directed=True,
                   vertex_attrs={
@@ -311,12 +314,6 @@ class SewerGraph:
             # pprint(self.G.summary())
 
             # self._steadyFlow(0,[0.1,0.1,0.1,0.1])
-        # Rainfall (in hours 0-6)
-
-        # print(self.G.summary())
-        # print(self.G.topological_sorting())
-        # print(self.rainfall)
-        
         
     
     def _steadyFlow(self, t, x):
@@ -345,9 +342,6 @@ class SewerGraph:
             inflow = np.sum([self.G.es['flow'][e] for e in incomingEdges])
             pprint(f"inflow: {inflow}")
 
-
-
-
     def _getDepthCircularPipe(self, q, diam, n, s):
         """
         Compute depth for given flow on Circular Pipe using Manning equation.
@@ -363,7 +357,6 @@ class SewerGraph:
 
         return (1/n)* area * np.power(hydraulicRadius,2/3) * np.power(slope, 0.5)
 
-
     def _solveAverageDepth(self, flow):
         if flow <= 0:
             return 0.0
@@ -371,7 +364,6 @@ class SewerGraph:
             slope = 0.0001
 
         # if flow >= self.G.es['']
-
 
     # TODO: Switch over to lookup tables
     def _angleFromArea(self, area):
@@ -410,11 +402,6 @@ class SewerGraph:
 
     def _sectionFactorDerivative(self, theta):
         return ((5/3) - (2/3) * np.multiply(self._wettedPerimeterDerivative(theta) , self._hydraulicRadius(theta)))* np.power(self._hydraulicRadius(theta),2/3)
-
-
-
-       
-
 
     # TODO: Add "Analytical Functions for Circular Cross Sections"
     def update(self, t, dt, rainfall):
@@ -563,7 +550,6 @@ class SewerGraph:
         if file == None:
             file = 'circularPipeFunctions'
         plt.savefig(f'figures/{file}.png', dpi=300, bbox_inches='tight')
-
 
     def visualize(self, times, depths, fileName=None):
         """
