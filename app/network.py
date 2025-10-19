@@ -81,7 +81,7 @@ class SubcatchmentGraph:
 
             self.G = ig.Graph(n=n,edges=edges,directed=True,
                   vertex_attrs={
-                      'coupledID': np.array(data["id"].astype(int))
+                      'coupledID': np.array(data["id"].astype(int)),
                       'invert': np.zeros(n),
                       'x': np.array(data["x"].astype(float)),
                       'y': np.array(data["y"].astype(float)),
@@ -268,7 +268,7 @@ class SewerGraph:
 
             self.G = ig.Graph(n=n,edges=edges,directed=True,
                   vertex_attrs={
-                      'coupledID': np.array(data["id"].astype(int))
+                      'coupledID': np.array(data["id"].astype(int)),
                       'invert': np.zeros(n),
                       'x': np.array(data["x"].astype(float)),
                       'y': np.array(data["y"].astype(float)),
