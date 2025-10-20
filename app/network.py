@@ -178,10 +178,313 @@ class SubcatchmentGraph:
         plt.savefig(f"figures/{fileName}.png")
 
 
+class StreetGraph:
+    """Graph of Street portion of Hydraulic Network."""
+    def __init__(self, file=None):
+        super(StreetGraph, self).__init__()
+        if file == None:
+            self.G = ig.Graph(n=5,edges=[(0,1),(2,3),(3,1),(1,4)],directed=True,
+                              vertex_attrs={
+                                  'invert': np.array([0.0,0.016,0.035]),
+                                  'x': np.array([100.0,100.0,200.0,200.0,0.0]),
+                                  'y': np.array([100.0,0.0,100.0,0.0,0.0]),
+                                  # z choice based on subcatchment slope, except for 4
+                                  # 4 is ARBITRARY
+                                  'z': np.array([0.5,0.0,0.6,0.4,-0.1]),
+                                  'depth': np.array([0.0,0.0,0.0,0.0,0.0]),
+                                  # 0 - junction
+                                  # 1 - outfall
+                                  'type': np.array([0,0,0,0,1])
+                                  # 'subcatchmentCoupling': np.array([-1,-1,-1,-1,-1])
+                                  })
+            # calculate the lengths of each pipe
+            for e in self.G.es:
+                s = np.array([self.G.vs[e.source]['x'], self.G.vs[e.source]['y'], self.G.vs[e.source]['z']])
+                d = np.array([self.G.vs[e.target]['x'], self.G.vs[e.target]['y'], self.G.vs[e.target]['z']])
+                self.G.es[e.index]['length'] = np.linalg.norm(s - d)
+            # calculate the slope of each pipe
+            for e in self.G.es:
+                slope = self.G.vs[e.source]['z'] - self.G.vs[e.target]['z']
+                if slope < 0.0001:
+                    print(f"WARNING: slope for edge {e} is too small.")
+                self.G.es[e.index]['slope'] = self.G.vs[e.source]['z'] - self.G.vs[e.target]['z']
+            # print(self.G.es['slope'])
+            # TODO: add offset height calculations
+            # Needs to be given a priori
+            self.G.es['offsetHeight'] = [0.0 for _ in range(self.G.ecount())]
+
+            # Geometry of Pipes (Circular in this case)
+            self.G.es['diam'] = [0.5,0.5,0.8,1.0]
+            # TODO: Decide if this should be stored (or computed) elsewhere
+            self.G.es['areaFull'] = 0.25*np.pi*np.power(self.G.es['diam'],2)
+            self.G.es['hydraulicRadiusFull'] = np.multiply(0.25,self.G.es['diam'])
+            self.G.es['sectionFactorFull'] = self.G.es['areaFull']*np.power(self.G.es['hydraulicRadiusFull'],2/3)
+
+            # self.G.es['flow'] = [0.0,0.0,0.0,0.0]
+            self.G.es['flow'] = [0.1,0.2,0.1,0.1]
+
+            self._steadyFlow(0,[0.1,0.1,0.1,0.1])
+
+            # Create plot to test circular functions
+            # TODO: Add plot generation for theta between 0 and pi
+            # Calculate all functions
+            for i in range(4):
+                self.graphGeometry(i,file=f"circularPipeGeometry{i}")
+        else:
+            data = pd.read_csv(f"data/{file}.csv")
+            data = data[data["type"].str.contains("STREET")]
+            n = data.shape[0]
+            # pprint(n)
+            # pprint(data["type"])
+            # pprint(data["x"].astype(float))
+            # pprint(data)
+            # pprint(data["type"].str.contains("OUTFALL").astype(int))
+
+            # Needed to create edges
+            edges = []
+            mapToID = []
+            i = 0
+            for _, row in data.iterrows():
+                mapToID.append((row["id"],i))
+                i = i+1
+
+
+
+            # Creates the edges by translating the node id's in the csv into 0-indexed sewer nodes
+            for _, row in data.iterrows():
+                # pprint(f"{index}, {row["id"]}")
+                if row["outgoing"] != -1:
+                    id = row["id"]
+                    outgoing = row["outgoing"]
+                    for pair in mapToID:
+                        if pair[0] == id:
+                            id = pair[1]
+                        if pair[0] == outgoing:
+                            outgoing = pair[1]
+                    edges.append( (id, outgoing))
+
+
+
+            self.G = ig.Graph(n=n,edges=edges,directed=True,
+                  vertex_attrs={
+                      'coupledID': np.array(data["id"].astype(int)),
+                      'invert': np.zeros(n),
+                      'x': np.array(data["x"].astype(float)),
+                      'y': np.array(data["y"].astype(float)),
+                      'z': np.array(data["z"].astype(float)),
+                      'depth': np.zeros(n),
+                      # 0 - junction
+                      # 1 - outfall
+                      'type': np.array(data["type"].str.contains("OUTFALL").astype(int))
+                      # TODO: I need to decide if coupling occurs at this level or the level above
+                      # 'subcatchmentCoupling': np.array([-1,-1,-1,-1,-1])
+                      })
+            # calculate the lengths of each pipe
+            for e in self.G.es:
+                s = np.array([self.G.vs[e.source]['x'], self.G.vs[e.source]['y'], self.G.vs[e.source]['z']])
+                d = np.array([self.G.vs[e.target]['x'], self.G.vs[e.target]['y'], self.G.vs[e.target]['z']])
+                self.G.es[e.index]['length'] = np.linalg.norm(s - d)
+            # calculate the slope of each pipe
+            for e in self.G.es:
+                slope = self.G.vs[e.source]['z'] - self.G.vs[e.target]['z']
+                if slope < 0.0001:
+                    print(f"WARNING: slope for edge ({e.source}, {e.target}) is too small.")
+                    print(f"{e.source}: ({self.G.vs[e.source]['x']}, {self.G.vs[e.source]['y']}, {self.G.vs[e.source]['z']})")
+                    print(f"{e.target}: ({self.G.vs[e.target]['x']}, {self.G.vs[e.target]['y']}, {self.G.vs[e.target]['z']})")
+                self.G.es[e.index]['slope'] = self.G.vs[e.source]['z'] - self.G.vs[e.target]['z']
+            # pprint(f"Slopes: {self.G.es['slope']}")
+            # pprint(f"Length: {self.G.es['length']}")
+            # TODO: add offset height calculations
+            # Needs to be given a priori
+            self.G.es['offsetHeight'] = [0.0 for _ in range(self.G.ecount())]
+
+            # Geometry of Pipes (Circular in this case)
+            self.G.es['diam'] = [0.5 for _ in self.G.es]
+            # pprint(f"Diam: {self.G.es['diam']}")
+            # TODO: Decide if this should be stored (or computed) elsewhere
+            self.G.es['areaFull'] = 0.25*np.pi*np.power(self.G.es['diam'],2)
+            self.G.es['hydraulicRadiusFull'] = np.multiply(0.25,self.G.es['diam'])
+            self.G.es['sectionFactorFull'] = self.G.es['areaFull']*np.power(self.G.es['hydraulicRadiusFull'],2/3)
+
+            self.G.es['flow'] = np.zeros(self.G.ecount())
+            # pprint(self.G.summary())
+
+            # self._steadyFlow(0,[0.1,0.1,0.1,0.1])
+        
+    def update(self, t, dt, rainfall):
+        """
+        Updates the attributes of the network using the kinematic Model.
+
+        Parameters:
+        -----------
+        t : float
+            initial time
+        dt : float
+            time between initial time and desired end time
+        rainfall : float
+            average rainfall measured over the time [t,t+dt]
+
+        Returns:
+        --------
+        depths : list
+            Updated depths ordered by igraph id
+
+        """
+        def kineticFlow(t, x):
+            """
+            TODO: List assumptions. Uses mannings equation and continuity of mass to take the total inflow and write it as
+            a discharge considering the pipe shape.
+
+            Parameters:
+            -----------
+            t : float
+                the current time in the ode
+            x : list(float)
+                list of depths
+            """
+            #1. check acyclic
+            if not self.G.is_dag():
+                raise ValueError("Street Network must be acyclic.")
+
+            #2. top sort
+            order = self.G.topological_sorting()
+
+            for nid in order:
+                #3. Get inflows
+                # TODO: Continue
+                pass
+        pass
+
+
+    def graphGeometry(self, id, file=None):
+        theta = np.linspace(0.01, 2*np.pi - 0.01, 1000)
+        area = [self._areaFromAngle(t)[id] for t in theta]
+        d = [self._depth(t)[id] for t in theta]
+        sf = [self._sectionFactor(t)[id] for t in theta]
+        wp = [self._wettedPerimeter(t)[id] for t in theta]
+        hr = [self._hydraulicRadius(t)[id] for t in theta]
+        wp_deriv = [self._wettedPerimeterDerivative(t)[id] for t in theta]
+        sf_deriv = [self._sectionFactorDerivative(t)[id] for t in theta]
+
+        # Create subplots
+        fig, axes = plt.subplots(3, 3, figsize=(15, 12))
+        fig.suptitle(f'Circular Pipe Functions vs Central Angle θ\n', 
+                     fontsize=16, fontweight='bold')
+
+        # Plot 1: Area
+        axes[0, 0].plot(theta, area, 'b-', linewidth=2)
+        axes[0, 0].set_xlabel('θ (radians)')
+        axes[0, 0].set_ylabel('Area (m²)')
+        axes[0, 0].set_title('Cross-sectional Area')
+        axes[0, 0].grid(True, alpha=0.3)
+        axes[0, 0].axhline(y=self.G.es['areaFull'][0], color='r', linestyle='--', alpha=0.5, label='Full Area')
+        axes[0, 0].legend()
+
+        # Plot 2: Depth
+        axes[0, 1].plot(theta, d, 'g-', linewidth=2)
+        axes[0, 1].set_xlabel('θ (radians)')
+        axes[0, 1].set_ylabel('Depth (m)')
+        axes[0, 1].set_title('Flow Depth')
+        axes[0, 1].grid(True, alpha=0.3)
+        axes[0, 1].axhline(y=self.G.es['diam'][id], color='r', linestyle='--', alpha=0.5, label='Full Depth')
+        axes[0, 1].legend()
+
+        # Plot 3: Section Factor
+        axes[0, 2].plot(theta, sf, 'r-', linewidth=2)
+        axes[0, 2].set_xlabel('θ (radians)')
+        axes[0, 2].set_ylabel('Section Factor (m^(8/3))')
+        axes[0, 2].set_title('Section Factor')
+        axes[0, 2].grid(True, alpha=0.3)
+
+        # Plot 4: Wetted Perimeter
+        axes[1, 0].plot(theta, wp, 'c-', linewidth=2)
+        axes[1, 0].set_xlabel('θ (radians)')
+        axes[1, 0].set_ylabel('Wetted Perimeter (m)')
+        axes[1, 0].set_title('Wetted Perimeter')
+        axes[1, 0].grid(True, alpha=0.3)
+
+        # Plot 5: Hydraulic Radius
+        axes[1, 1].plot(theta, hr, 'm-', linewidth=2)
+        axes[1, 1].set_xlabel('θ (radians)')
+        axes[1, 1].set_ylabel('Hydraulic Radius (m)')
+        axes[1, 1].set_title('Hydraulic Radius')
+        axes[1, 1].grid(True, alpha=0.3)
+        axes[1, 1].axhline(y=self.G.es['hydraulicRadiusFull'][id], color='r', linestyle='--', alpha=0.5, label='Full')
+        axes[1, 1].legend()
+
+        # Plot 6: Wetted Perimeter Derivative
+        axes[1, 2].plot(theta, wp_deriv, 'orange', linewidth=2)
+        axes[1, 2].set_xlabel('θ (radians)')
+        axes[1, 2].set_ylabel('dP/dθ')
+        axes[1, 2].set_title('Wetted Perimeter Derivative')
+        axes[1, 2].grid(True, alpha=0.3)
+
+        # Plot 7: Section Factor Derivative
+        axes[2, 0].plot(theta, sf_deriv, 'purple', linewidth=2)
+        axes[2, 0].set_xlabel('θ (radians)')
+        axes[2, 0].set_ylabel('dSF/dθ')
+        axes[2, 0].set_title('Section Factor Derivative')
+        axes[2, 0].grid(True, alpha=0.3)
+
+        # Plot 8: Fill Ratio (Area/AreaFull)
+        fill_ratio = area / self.G.es['areaFull'][id]
+        axes[2, 1].plot(theta, fill_ratio, 'brown', linewidth=2)
+        axes[2, 1].set_xlabel('θ (radians)')
+        axes[2, 1].set_ylabel('Fill Ratio')
+        axes[2, 1].set_title('Area Fill Ratio (A/A_full)')
+        axes[2, 1].grid(True, alpha=0.3)
+        axes[2, 1].set_ylim([0, 1.1])
+
+        # Plot 9: Depth vs Area (useful relationship)
+        axes[2, 2].plot(area, d, 'navy', linewidth=2)
+        axes[2, 2].set_xlabel('Area (m²)')
+        axes[2, 2].set_ylabel('Depth (m)')
+        axes[2, 2].set_title('Depth vs Area Relationship')
+        axes[2, 2].grid(True, alpha=0.3)
+
+        plt.tight_layout()
+        if file == None:
+            file = 'streetPipeFunctions'
+        plt.savefig(f'figures/{file}.png', dpi=300, bbox_inches='tight')
+
+    def visualize(self, times, depths, fileName=None):
+        """
+        Visualize depth over time for each subcatchment.
+        
+        Parameters:
+        -----------
+        times : 1-d list
+            Array of time points
+        depths : 2-d list
+            List where each element is an array of depths at that time point
+            Should have shape (n_timesteps, n_vertices)
+        """
+        depths_array = np.array(depths)
+        
+        plt.figure(figsize=(10, 6))
+        
+        for i in range(self.G.vcount()):
+            plt.plot(times, depths_array[:, i], 
+                    label=f'Subcatchment {i}', 
+                    # marker='o', 
+                    linewidth=2)
+        
+        plt.xlabel('Time (hours)', fontsize=12)
+        plt.ylabel('Depth (m)', fontsize=12)
+        plt.title('Subcatchment Depth vs Time', fontsize=14, fontweight='bold')
+        plt.legend()
+        plt.grid(True, alpha=0.3)
+        plt.tight_layout()
+        if fileName == None:
+            fileName = "test"
+        plt.savefig(f"figures/{fileName}.png")
+
+
+
 
 class SewerGraph:
     """Graph of Sewer portion of Hydraulic Network."""
-    def __init__(self, file=None, testingAsStreet=False):
+    def __init__(self, file=None):
         super(SewerGraph, self).__init__()
         if file == None:
             self.G = ig.Graph(n=5,edges=[(0,1),(2,3),(3,1),(1,4)],directed=True,
@@ -233,10 +536,7 @@ class SewerGraph:
                 self.graphGeometry(i,file=f"circularPipeGeometry{i}")
         else:
             data = pd.read_csv(f"data/{file}.csv")
-            if testingAsStreet:
-                data = data[data["type"].str.contains("STREET")]
-            else:
-                data = data[data["type"].str.contains("SEWER")]
+            data = data[data["type"].str.contains("SEWER")]
             n = data.shape[0]
             # pprint(n)
             # pprint(data["type"])

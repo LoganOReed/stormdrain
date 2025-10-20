@@ -11,7 +11,7 @@ import scipy as sc
 import random
 import csv
 from pprint import pprint
-from .network import SubcatchmentGraph, SewerGraph
+from .network import SubcatchmentGraph, SewerGraph, StreetGraph
 from .newton_bisection import findroot
 
 
@@ -22,11 +22,16 @@ if __name__ == "__main__":
     # rainfall = [0.0,0.5,1.0,0.75,0.5,0.25,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]
     rainfall = [e * 0.0254 for e in rainfall]
 
-    subcatchment = SubcatchmentGraph("largerExample")
+    file = "largerExample"
+
+
+    subcatchment = SubcatchmentGraph(file)
     # pprint(subcatchment.hydraulicCoupling)
     # pprint(subcatchment.G.vs['coupledID'])
     # pprint(subcatchment.update(2,0.5,rainfall[3]))
-    sewer = SewerGraph("largerExample", testingAsStreet=True)
+    street = StreetGraph(file)
+    pprint(street.G.summary())
+    sewer = SewerGraph(file)
 
     # TODO: Have subcatchment coupling happen by passing hydraulicCoupling and runoff to sewer update function
 
