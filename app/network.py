@@ -187,6 +187,7 @@ class StreetGraph:
         self.depthFromArea = octave.depth_Y_from_area
         self.psiFromArea = octave.psi_from_area
         self.psiPrimeFromArea = octave.psi_prime_from_area
+        self.yFull = 0.3197 # diff between lowest and highest point from choice of Street Parameters
         if file == None:
             self.G = ig.Graph(n=5,edges=[(0,1),(2,3),(3,1),(1,4)],directed=True,
                               vertex_attrs={
@@ -291,12 +292,12 @@ class StreetGraph:
                 self.G.es[e.index]['length'] = np.linalg.norm(s - d)
             # calculate the slope of each pipe
             for e in self.G.es:
-                slope = self.G.vs[e.source]['z'] - self.G.vs[e.target]['z']
+                slope = (self.G.vs[e.source]['z'] - self.G.vs[e.target]['z']) / self.G.es[e.index]['length']
                 if slope < 0.0001:
                     print(f"WARNING: slope for edge ({e.source}, {e.target}) is too small.")
                     print(f"{e.source}: ({self.G.vs[e.source]['x']}, {self.G.vs[e.source]['y']}, {self.G.vs[e.source]['z']})")
                     print(f"{e.target}: ({self.G.vs[e.target]['x']}, {self.G.vs[e.target]['y']}, {self.G.vs[e.target]['z']})")
-                self.G.es[e.index]['slope'] = self.G.vs[e.source]['z'] - self.G.vs[e.target]['z']
+                self.G.es[e.index]['slope'] = slope
             # pprint(f"Slopes: {self.G.es['slope']}")
             # pprint(f"Length: {self.G.es['length']}")
             # TODO: add offset height calculations
@@ -304,14 +305,18 @@ class StreetGraph:
             self.G.es['offsetHeight'] = [0.0 for _ in range(self.G.ecount())]
 
             # Geometry of Pipes (Circular in this case)
-            self.G.es['diam'] = [0.5 for _ in self.G.es]
+            # self.G.es['diam'] = [0.5 for _ in self.G.es]
             # pprint(f"Diam: {self.G.es['diam']}")
             # TODO: Decide if this should be stored (or computed) elsewhere
-            self.G.es['areaFull'] = 0.25*np.pi*np.power(self.G.es['diam'],2)
-            self.G.es['hydraulicRadiusFull'] = np.multiply(0.25,self.G.es['diam'])
-            self.G.es['sectionFactorFull'] = self.G.es['areaFull']*np.power(self.G.es['hydraulicRadiusFull'],2/3)
+            # self.G.es['areaFull'] = 0.25*np.pi*np.power(self.G.es['diam'],2)
+            # self.G.es['hydraulicRadiusFull'] = np.multiply(0.25,self.G.es['diam'])
+            # self.G.es['sectionFactorFull'] = self.G.es['areaFull']*np.power(self.G.es['hydraulicRadiusFull'],2/3)
 
-            self.G.es['flow'] = np.zeros(self.G.ecount())
+            # 1 is source node and 2 is target node
+            self.G.es['Q1'] = np.zeros(self.G.ecount())
+            self.G.es['Q2'] = np.zeros(self.G.ecount())
+            self.G.es['A1'] = np.zeros(self.G.ecount())
+            self.G.es['A2'] = np.zeros(self.G.ecount())
             # pprint(self.G.summary())
 
             # self._steadyFlow(0,[0.1,0.1,0.1,0.1])
