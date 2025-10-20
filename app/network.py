@@ -2,6 +2,7 @@ import igraph as ig
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy as sc
+from oct2py import octave
 import pandas as pd
 import random
 from pprint import pprint
@@ -182,6 +183,10 @@ class StreetGraph:
     """Graph of Street portion of Hydraulic Network."""
     def __init__(self, file=None):
         super(StreetGraph, self).__init__()
+        octave.addpath(octave.genpath("./octave"))
+        self.depthFromArea = octave.depth_Y_from_area
+        self.psiFromArea = octave.psi_from_area
+        self.psiPrimeFromArea = octave.psi_prime_from_area
         if file == None:
             self.G = ig.Graph(n=5,edges=[(0,1),(2,3),(3,1),(1,4)],directed=True,
                               vertex_attrs={
