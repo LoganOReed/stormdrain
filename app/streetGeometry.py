@@ -137,7 +137,7 @@ def psiFromAreaStreet(A, A_tbl, R_tbl, Y_full):
     # Section factor
     Psi = A * (RY)**(2/3)
     
-    return Psi
+    return max(Psi,1e-8)
 
 def psiPrimeFromAreaStreet(A, A_tbl, R_tbl, Y_full):
     """

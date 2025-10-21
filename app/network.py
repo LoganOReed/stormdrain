@@ -291,14 +291,14 @@ class StreetGraph:
         self.G.es['Q1'] = np.zeros(self.G.ecount())
         self.G.es['Q2'] = np.zeros(self.G.ecount())
         # NOTE: Cant initialize as zero because first update will fail
-        self.G.es['A1'] = np.full(self.G.ecount(),0.01)
-        self.G.es['A2'] = np.full(self.G.ecount(),0.01)
+        self.G.es['A1'] = np.full(self.G.ecount(),0.0001)
+        self.G.es['A2'] = np.full(self.G.ecount(),0.0001)
 
         self.G.es['Q1New'] = np.zeros(self.G.ecount())
         self.G.es['Q2New'] = np.zeros(self.G.ecount())
         # NOTE: Cant initialize as zero because first update will fail
-        self.G.es['A1New'] = np.full(self.G.ecount(),0.01)
-        self.G.es['A2New'] = np.full(self.G.ecount(),0.01)
+        self.G.es['A1New'] = np.full(self.G.ecount(),0.0001)
+        self.G.es['A2New'] = np.full(self.G.ecount(),0.0001)
         # pprint(self.G.summary())
         
     def update(self, t, dt, runoff, drainOverflows):
@@ -321,6 +321,7 @@ class StreetGraph:
 
         """
         # keeps track of inflows for sewer coupling
+        peakDischarge = 0.0
         drainInflow = np.zeros(self.G.vcount())
         def kineticFlow(t, dt, runoff, drainOverflows, theta=0.6, phi = 0.6):
             """
@@ -403,7 +404,7 @@ class StreetGraph:
                         'R_tbl': R_tbl,
                         'yFull': self.yFull
                         }
-                A1New, _ = newtonBisection(0, Amax, phiInverse, tol=Amax*0.0001, p=p)
+                A1New, _ = newtonBisection(1e-16, Amax, phiInverse, p=p)
                 # pprint(f"A1New From Bisection: {A1New}")
 
                 c1 = (drainLength * theta) / (dt * phi)
@@ -423,7 +424,8 @@ class StreetGraph:
                         'yFull': self.yFull
 
                         }
-                A2New, _ = newtonBisection(0, Amax, A2NewFunction, tol=Amax*0.0001, p=p, xinit=A2)
+                A2New, _ = newtonBisection(1e-16, Amax, A2NewFunction, p=p, xinit=A2)
+                # A2New, _ = newtonBisection(0, Amax, A2NewFunction, tol=Amax*0.0001, p=p, xinit=A2)
 
                 Q2New = beta * psiFromAreaStreet(A2New, A_tbl, R_tbl, self.yFull)
                 # TODO: Do depth after all areas computed
@@ -450,6 +452,7 @@ class StreetGraph:
             self.G.es['A2'] = self.G.es['A2New']
             self.G.es['Q1'] = self.G.es['Q1New']
             self.G.es['Q2'] = self.G.es['Q2New']
+            peakDischarge = np.max(np.abs(self.G.es['Q1'] + self.G.es['Q2']))
             # compute depth's
             for nid in order:
                 maxDepth = 0.0
@@ -473,7 +476,8 @@ class StreetGraph:
         averageArea = np.divide(self.G.es['A1'] + self.G.es['A2'],2.0) 
         pprint(f"Average Area: {averageArea}")
         pprint(f"New Depth:{self.G.vs['depth']}")
-        return self.G.vs['depth'], averageArea, drainInflow
+        return self.G.vs['depth'], averageArea, drainInflow, peakDischarge             
+
 
 
 
@@ -743,14 +747,14 @@ class SewerGraph:
             self.G.es['Q1'] = np.zeros(self.G.ecount())
             self.G.es['Q2'] = np.zeros(self.G.ecount())
             # NOTE: Cant initialize as zero because first update will fail
-            self.G.es['A1'] = np.full(self.G.ecount(),0.01)
-            self.G.es['A2'] = np.full(self.G.ecount(),0.01)
+            self.G.es['A1'] = np.full(self.G.ecount(),0.0001)
+            self.G.es['A2'] = np.full(self.G.ecount(),0.0001)
 
             self.G.es['Q1New'] = np.zeros(self.G.ecount())
             self.G.es['Q2New'] = np.zeros(self.G.ecount())
             # NOTE: Cant initialize as zero because first update will fail
-            self.G.es['A1New'] = np.full(self.G.ecount(),0.01)
-            self.G.es['A2New'] = np.full(self.G.ecount(),0.01)
+            self.G.es['A1New'] = np.full(self.G.ecount(),0.0001)
+            self.G.es['A2New'] = np.full(self.G.ecount(),0.0001)
             
             # TODO: Change this to actual yfull in the future
             self.yFull = A_tbl[-1]
@@ -827,6 +831,7 @@ class SewerGraph:
 
         """
         # keeps track of inflows for sewer coupling
+        peakDischarge = 0.0
         drainOutflow = np.zeros(self.G.vcount())
         def kineticFlow(t, dt, drainInflow, theta=0.6, phi = 0.6):
             """
@@ -909,7 +914,7 @@ class SewerGraph:
                         'R_tbl': R_tbl,
                         'yFull': self.yFull
                         }
-                A1New, _ = newtonBisection(0, Amax, phiInverse, tol=Amax*0.0001, p=p)
+                A1New, _ = newtonBisection(1e-16, Amax, phiInverse,  p=p)
                 # pprint(f"A1New From Bisection: {A1New}")
 
                 c1 = (drainLength * theta) / (dt * phi)
@@ -929,7 +934,8 @@ class SewerGraph:
                         'yFull': self.yFull
 
                         }
-                A2New, _ = newtonBisection(0, Amax, A2NewFunction, tol=Amax*0.0001, p=p, xinit=A2)
+                # NOTE: I edited this with random things to make it not NaN
+                A2New, _ = newtonBisection(1e-16, Amax, A2NewFunction, p=p, xinit=A2)
 
                 Q2New = beta * psiFromAreaStreet(A2New, A_tbl, R_tbl, self.yFull)
                 # TODO: Do depth after all areas computed
@@ -956,6 +962,7 @@ class SewerGraph:
             self.G.es['A2'] = self.G.es['A2New']
             self.G.es['Q1'] = self.G.es['Q1New']
             self.G.es['Q2'] = self.G.es['Q2New']
+            peakDischarge = np.max(np.abs(self.G.es['Q1'] + self.G.es['Q2']))
             # compute depth's
             for nid in order:
                 maxDepth = 0.0
@@ -979,7 +986,7 @@ class SewerGraph:
         averageArea = np.divide(self.G.es['A1'] + self.G.es['A2'],2.0) 
         pprint(f"Average Area: {averageArea}")
         pprint(f"New Depth:{self.G.vs['depth']}")
-        return self.G.vs['depth'], averageArea, drainOutflow
+        return self.G.vs['depth'], averageArea, drainOutflow, peakDischarge
 
 
 

@@ -11,12 +11,12 @@ from pprint import pprint
 from .network import SubcatchmentGraph, SewerGraph, StreetGraph
 
 # https://stackoverflow.com/questions/76752021/producing-a-gif-of-plot-over-time-python
-def visualize( subcatchment, street, streetYFull, sewer, sewerYFull, subcatchmentDepths, runoffs, streetDepths, streetEdgeAreas, sewerDepths, sewerEdgeAreas, drainOverflows, drainInflows, times, file="visualizeExample", cmap=plt.cm.plasma, fps=5):
+def visualize( subcatchment, street, streetYFull, sewer, sewerYFull, subcatchmentDepths, runoffs, streetDepths, streetEdgeAreas, sewerDepths, sewerEdgeAreas, drainOverflows, drainInflows, times, rainfall, peakDischarges, file="visualizeExample", cmap=plt.cm.plasma, fps=5):
     """Creates a gif from igraph, t0, T, stepsize. weights are a function of time"""
 
     frames = []
     for it in range(len(times)):
-        fig = createFrame(subcatchment, street, streetYFull, sewer, sewerYFull, subcatchmentDepths, runoffs, streetDepths, streetEdgeAreas, sewerDepths, sewerEdgeAreas, drainOverflows, drainInflows, it, times, cmap=cmap)
+        fig = createFrame(subcatchment, street, streetYFull, sewer, sewerYFull, subcatchmentDepths, runoffs, streetDepths, streetEdgeAreas, sewerDepths, sewerEdgeAreas, drainOverflows, drainInflows, it, times, rainfall, peakDischarges, cmap=cmap)
         fig.canvas.draw()
         frames.append(np.array(fig.canvas.renderer._renderer))
         # Save GIF
@@ -25,7 +25,7 @@ def visualize( subcatchment, street, streetYFull, sewer, sewerYFull, subcatchmen
                         fps=fps)
         
 
-def createFrame(subcatchment, street, streetYFull, sewer, sewerYFull, subcatchmentDepths, runoffs, streetDepths, streetEdgeAreas, sewerDepths, sewerEdgeAreas, drainOverflows, drainInflows, it, times, cmap=plt.cm.plasma):
+def createFrame(subcatchment, street, streetYFull, sewer, sewerYFull, subcatchmentDepths, runoffs, streetDepths, streetEdgeAreas, sewerDepths, sewerEdgeAreas, drainOverflows, drainInflows, it, times, rainfall, peakDischarges, cmap=plt.cm.plasma):
     """Creates t-th frame of graph g and returns figure."""
     # Convert to networkx for visualizing
     aSubcatchments = np.array(subcatchment.G.get_adjacency())
@@ -67,6 +67,7 @@ def createFrame(subcatchment, street, streetYFull, sewer, sewerYFull, subcatchme
     # weights = [(w + times[it]) % M for w in range(2,M+2) ]
     # TODO: Make cmap stuff normalize over all 3 graphs
     norm = plt.Normalize(vmin=0,vmax=max(streetYFull,0))
+    normSewer = plt.Normalize(vmin=0,vmax=max(streetYFull*4,0))
     # TODO: Choose this in a better way
     # norm = plt.Normalize(vmin=0,vmax=max(streetYFull,sewerYFull))
 
@@ -140,9 +141,8 @@ def createFrame(subcatchment, street, streetYFull, sewer, sewerYFull, subcatchme
                            node_shape='o', 
                            ax=ax[1,0])
     nx.draw_networkx_nodes(nxSewer, layoutSewer, nodelist=[item for item, condition in zip(idsSewer, sewer.G.vs["type"]) if condition == 1], node_color="black", node_shape='^', ax=ax[1,0])
-    edges = nx.draw_networkx_edges(g, layout, 
-                           # edgelist=sewer.G.get_edgelist(),
-                           edgelist=newStreetEdgeList,
+    edges = nx.draw_networkx_edges(nxSewer, layoutSewer, 
+                           edgelist=sewer.G.get_edgelist(),
                            arrowstyle="->",
                            arrowsize=10,
                            edge_color=sewerNodesColors,
@@ -151,6 +151,38 @@ def createFrame(subcatchment, street, streetYFull, sewer, sewerYFull, subcatchme
                            ax=ax[1,0])
 
 
+    # Plot cumulative rainfall
+    cumulative_rainfall = np.cumsum(rainfall[:it+1])
+    time_hours = times[:it+1]
+
+    ax[0,1].clear()
+    ax[0,1].plot(time_hours, cumulative_rainfall, 
+                 marker='o', linewidth=2, markersize=6, color='steelblue')
+    ax[0,1].set_xlabel('Time (hours)', fontsize=10)
+    ax[0,1].set_ylabel('Cumulative Rainfall (meters)', fontsize=10)
+    ax[0,1].set_title('Cumulative Rainfall Over Time', fontsize=12, fontweight='bold')
+    ax[0,1].grid(True, alpha=0.3)
+
+    # Set fixed axis limits so the plot doesn't rescale every frame
+    ax[0,1].set_xlim(times[0], times[-1])
+    ax[0,1].set_ylim(0, np.sum(rainfall) * 1.1)
+
+
+    # Plot Peak Discharges
+    time_hours = times[:it+1]
+    current_peak_discharges = peakDischarges[:it+1]
+
+    ax[1,1].clear()
+    ax[1,1].plot(time_hours, current_peak_discharges, 
+                 marker='o', linewidth=2, markersize=6, color='crimson')
+    ax[1,1].set_xlabel('Time (hours)', fontsize=10)
+    ax[1,1].set_ylabel('Peak Discharge (m^3/s)', fontsize=10)
+    ax[1,1].set_title('Peak Discharge Over Time', fontsize=12, fontweight='bold')
+    ax[1,1].grid(True, alpha=0.3)
+
+    # Set fixed axis limits so the plot doesn't rescale every frame
+    ax[1,1].set_xlim(times[0], times[-1])
+    ax[1,1].set_ylim(0, max(abs(x) for x in peakDischarges) * 1.1)
 
 
     # create legend for color
@@ -183,5 +215,5 @@ if __name__ == "__main__":
     drainInflow = []
 
     # Layout for example
-    visualizeExample(subcatchment, street, sewer, runoff, drainOverflow, drainInflow, times, cmap=plt.cm.plasma )
+    visualizeExample(subcatchment, street, sewer, runoff, drainOverflow, drainInflow, times, rainfall, peakDischarges, cmap=plt.cm.plasma )
 

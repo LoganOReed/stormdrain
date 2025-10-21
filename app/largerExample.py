@@ -21,8 +21,12 @@ from .visualize import visualize
 
 if __name__ == "__main__":
     # rainfall = [0.0,0.5,1.0,0.75,0.5,0.25,0.0]
-    rainfall = [0.0,0.5,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,0.75,0.5,0.25,0.0]
+    # rainfall = [0.01,0.5,1.0,1.0,1.0,1.5,1.8,2.0,2.0,2.0,2.0,2.0,2.0,2.0,2.0,2.0,2.0,2.0,2.0,2.0,2.0,1.6,1.2,1.2,1.1,0.75,0.75,0.5,0.5,0.5,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.1,0.1]
     # rainfall = [0.0,0.5,1.0,0.75,0.5,0.25,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]
+    # rainfall = [rain / 4 for rain in rainfall for _ in range(4)]
+    rainfall = [0.01,0.5,0.6,0.8,1.0,1.0,1.0,1.5,1.8,2.0,2.0,2.0,2.0,2.0,2.0]
+    rainfall = rainfall + rainfall[::-1]
+
     rainfall = [e * 0.0254 for e in rainfall]
 
     T = len(rainfall)
@@ -49,6 +53,7 @@ if __name__ == "__main__":
 
     # NOTE: Actual Update Loop
     dt = 1
+    peakDischarges = []
     for t in range(len(rainfall)):
         subcatchmentDepth, runoffUnsorted = subcatchment.update(t, dt, rainfall[t])
         subcatchmentDepths.append(subcatchmentDepth)
@@ -62,17 +67,22 @@ if __name__ == "__main__":
             i += 1
         # pprint(f"runoff unsorted: {runoffUnsorted}")
         # pprint(f"runoff: {runoff}")
+        peakDischarge = np.max(np.abs(runoff))
         runoffs.append(runoff)
 
         drainOverflow = np.zeros(street.G.vcount())
 
-        streetDepth, streetEdgeArea, drainInflow = street.update(t,dt,runoff,drainOverflow)
+        streetDepth, streetEdgeArea, drainInflow, tempPeakDischarge = street.update(t,dt,runoff,drainOverflow)
+        if peakDischarge < tempPeakDischarge:
+            peakDischarge = tempPeakDischarge
         streetDepths.append(streetDepth)
         streetEdgeAreas.append(streetEdgeArea)
         drainInflows.append(drainInflow)
 
         # update sewer
-        sewerDepth, sewerEdgeArea, drainOverflow = sewer.update(t,dt,drainInflow)
+        sewerDepth, sewerEdgeArea, drainOverflow, tempPeakDischarge = sewer.update(t,dt,drainInflow)
+        if peakDischarge < tempPeakDischarge:
+            peakDischarge = tempPeakDischarge
         sewerDepths.append(sewerDepth)
         sewerEdgeAreas.append(sewerEdgeArea)
         drainOutflows.append(drainOverflow)
@@ -81,12 +91,13 @@ if __name__ == "__main__":
 
         # pprint(f"SubcatchmentDepth: {subcatchmentDepth}")
         # pprint(f"runoff: {runoff}")
+        peakDischarges.append(peakDischarge)
         
     # TODO: Actually store these 
 
     times = [i for i in range(T)]
 
-    visualize(subcatchment, street, street.yFull, sewer, 0.5, subcatchmentDepths, runoffs, streetDepths, streetEdgeAreas, sewerDepths, sewerEdgeAreas, drainOverflows, drainInflows, times, cmap=plt.cm.plasma, fps=24 )
+    visualize(subcatchment, street, street.yFull, sewer, 0.5, subcatchmentDepths, runoffs, streetDepths, streetEdgeAreas, sewerDepths, sewerEdgeAreas, drainOverflows, drainInflows, times, rainfall, peakDischarges, cmap=plt.cm.plasma, fps=5 )
 
     pprint(f"Runoffs: {runoffs}")
     pprint(f"streetDepths: {streetDepths}")
