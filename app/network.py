@@ -276,7 +276,7 @@ class StreetGraph:
         # TODO: add offset height calculations
         # Needs to be given a priori
         self.G.es['offsetHeight'] = [0.0 for _ in range(self.G.ecount())]
-        self.G.es['n'] =  np.full(n, 0.010)
+        self.G.es['n'] =  np.full(n, 0.013)
 
 
         # Geometry of Pipes (Circular in this case)
@@ -301,7 +301,7 @@ class StreetGraph:
         self.G.es['A2New'] = np.full(self.G.ecount(),0.01)
         # pprint(self.G.summary())
         
-    def update(self, t, dt, runoff=None, drainOverflows=None):
+    def update(self, t, dt, runoff, drainOverflows):
         """
         Updates the attributes of the Street network using the kinematic Model.
 
@@ -321,11 +321,7 @@ class StreetGraph:
 
         """
         # keeps track of inflows for sewer coupling
-        if runoff == None:
-            runoff = np.zeros(self.G.vcount())
         drainInflow = np.zeros(self.G.vcount())
-        if drainOverflows == None:
-            drainOverflows = np.zeros(self.G.vcount())
         def kineticFlow(t, dt, runoff, drainOverflows, theta=0.6, phi = 0.6):
             """
             TODO: List assumptions. Uses mannings equation and continuity of mass to take the total inflow and write it as
@@ -370,12 +366,16 @@ class StreetGraph:
                 drainWidth = self.G.vs[nid]['drainWidth']
                 beta = np.power(slope,0.5) / self.G.es[edge]['n']
 
+                # check if node has drain
                 if self.G.vs[nid]['drain'] == 0:
                     drainOutflow = 0.0
+                # check if drain is overflowing
                 elif drainOverflows[nid] > 0.0:
                     drainOutflow = drainOverflows[nid]
+                # flow water into drain
                 else:
-                    drainOutflow = -1 * capturedFlow(Q1, A1, slope, drainLength, drainWidth)
+                    drainInflow[nid] = capturedFlow(Q1, A1, slope, drainLength, drainWidth)
+                    drainOutflow = -1*drainInflow[nid]
                 pprint(f"Drain Outflow for {nid}: {drainOutflow}")
                 # get Q2 of incoming edges
                 incomingQs = 0.0
@@ -473,7 +473,7 @@ class StreetGraph:
         averageArea = np.divide(self.G.es['A1'] + self.G.es['A2'],2.0) 
         pprint(f"Average Area: {averageArea}")
         pprint(f"New Depth:{self.G.vs['depth']}")
-        return self.G.vs['depth'], averageArea
+        return self.G.vs['depth'], averageArea, drainInflow
 
 
 
@@ -498,7 +498,7 @@ class StreetGraph:
         axes[0, 0].set_ylabel('Area (m²)')
         axes[0, 0].set_title('Cross-sectional Area')
         axes[0, 0].grid(True, alpha=0.3)
-        axes[0, 0].axhline(y=self.G.es['areaFull'][0], color='r', linestyle='--', alpha=0.5, label='Full Area')
+        axes[0, 0].axhline(y=self.G.es['Amax'][0], color='r', linestyle='--', alpha=0.5, label='Full Area')
         axes[0, 0].legend()
 
         # Plot 2: Depth
@@ -548,7 +548,7 @@ class StreetGraph:
         axes[2, 0].grid(True, alpha=0.3)
 
         # Plot 8: Fill Ratio (Area/AreaFull)
-        fill_ratio = area / self.G.es['areaFull'][id]
+        fill_ratio = area / self.G.es['Amax'][id]
         axes[2, 1].plot(theta, fill_ratio, 'brown', linewidth=2)
         axes[2, 1].set_xlabel('θ (radians)')
         axes[2, 1].set_ylabel('Fill Ratio')
@@ -641,9 +641,9 @@ class SewerGraph:
             # Geometry of Pipes (Circular in this case)
             self.G.es['diam'] = [0.5,0.5,0.8,1.0]
             # TODO: Decide if this should be stored (or computed) elsewhere
-            self.G.es['areaFull'] = 0.25*np.pi*np.power(self.G.es['diam'],2)
+            self.G.es['Amax'] = 0.25*np.pi*np.power(self.G.es['diam'],2)
             self.G.es['hydraulicRadiusFull'] = np.multiply(0.25,self.G.es['diam'])
-            self.G.es['sectionFactorFull'] = self.G.es['areaFull']*np.power(self.G.es['hydraulicRadiusFull'],2/3)
+            self.G.es['sectionFactorFull'] = self.G.es['Amax']*np.power(self.G.es['hydraulicRadiusFull'],2/3)
 
             # self.G.es['flow'] = [0.0,0.0,0.0,0.0]
             self.G.es['flow'] = [0.1,0.2,0.1,0.1]
@@ -700,7 +700,12 @@ class SewerGraph:
                       'depth': np.zeros(n),
                       # 0 - junction
                       # 1 - outfall
-                      'type': np.array(data["type"].str.contains("OUTFALL").astype(int))
+                      'type': np.array(data["type"].str.contains("OUTFALL").astype(int)),
+                      'drain': np.array(data["drain"].astype(int)),
+                      'drainType': np.array(data["drainType"]),
+                      'drainCoupledID': np.array(data["drainCoupledID"].astype(int)),
+                      'drainLength': np.array(data["drainLength"].astype(float)),
+                      'drainWidth': np.array(data["drainWidth"].astype(float)),
                       # TODO: I need to decide if coupling occurs at this level or the level above
                       # 'subcatchmentCoupling': np.array([-1,-1,-1,-1,-1])
                       })
@@ -727,50 +732,34 @@ class SewerGraph:
             self.G.es['diam'] = [0.5 for _ in self.G.es]
             # pprint(f"Diam: {self.G.es['diam']}")
             # TODO: Decide if this should be stored (or computed) elsewhere
-            self.G.es['areaFull'] = 0.25*np.pi*np.power(self.G.es['diam'],2)
+            self.G.es['Amax'] = 0.25*np.pi*np.power(self.G.es['diam'],2)
             self.G.es['hydraulicRadiusFull'] = np.multiply(0.25,self.G.es['diam'])
-            self.G.es['sectionFactorFull'] = self.G.es['areaFull']*np.power(self.G.es['hydraulicRadiusFull'],2/3)
+            self.G.es['sectionFactorFull'] = self.G.es['Amax']*np.power(self.G.es['hydraulicRadiusFull'],2/3)
 
             self.G.es['flow'] = np.zeros(self.G.ecount())
+            self.G.es['n'] =  np.full(n, 0.010)
+
+            # 1 is source node and 2 is target node
+            self.G.es['Q1'] = np.zeros(self.G.ecount())
+            self.G.es['Q2'] = np.zeros(self.G.ecount())
+            # NOTE: Cant initialize as zero because first update will fail
+            self.G.es['A1'] = np.full(self.G.ecount(),0.01)
+            self.G.es['A2'] = np.full(self.G.ecount(),0.01)
+
+            self.G.es['Q1New'] = np.zeros(self.G.ecount())
+            self.G.es['Q2New'] = np.zeros(self.G.ecount())
+            # NOTE: Cant initialize as zero because first update will fail
+            self.G.es['A1New'] = np.full(self.G.ecount(),0.01)
+            self.G.es['A2New'] = np.full(self.G.ecount(),0.01)
+            
+            # TODO: Change this to actual yfull in the future
+            self.yFull = A_tbl[-1]
+
             # pprint(self.G.summary())
 
             # self._steadyFlow(0,[0.1,0.1,0.1,0.1])
         
     
-    def _steadyFlow(self, t, x):
-        """
-        TODO: List assumptions. Uses mannings equation to take the total inflow and write it as
-        a discharge considering the pipe shape.
-
-        Parameters:
-        -----------
-        t : float
-            the current time in the ode
-        x : list(float)
-            list of depths
-        """
-        #1. check acyclic
-        if not self.G.is_dag():
-            raise ValueError("Sewer Network must be acyclic.")
-
-        #2. top sort
-        order = self.G.topological_sorting()
-
-        for nid in order:
-            #3. Get inflows
-            incomingEdges = self.G.incident(nid, mode='in')
-            pprint(f"incoming: {incomingEdges}")
-            inflow = np.sum([self.G.es['flow'][e] for e in incomingEdges])
-            pprint(f"inflow: {inflow}")
-
-    def _getDepthCircularPipe(self, q, diam, n, s):
-        """
-        Compute depth for given flow on Circular Pipe using Manning equation.
-        Solves Q = (1/n) * A * R^(2/3) * S^(1/2) for depth.
-        Using Newton-Raphson.
-        """
-        pass
-
     def _manning(self, area, hydraulicRadius, n, slope):
         """ Computes Manning from area, radius, n, slope."""
         if area <= 0 or hydraulicRadius <= 0 or slope <= 0:
@@ -778,18 +767,11 @@ class SewerGraph:
 
         return (1/n)* area * np.power(hydraulicRadius,2/3) * np.power(slope, 0.5)
 
-    def _solveAverageDepth(self, flow):
-        if flow <= 0:
-            return 0.0
-        if slope <= 0:
-            slope = 0.0001
-
-        # if flow >= self.G.es['']
 
     # TODO: Switch over to lookup tables
     def _angleFromArea(self, area):
         """computes the central angle by cross sectional flow area. A = A_{full} (theta - sin theta) / 2 pi"""
-        a = np.divide(area, self.G.es['areaFull'])
+        a = np.divide(area, self.G.es['Amax'])
         theta = 0.031715 - 12.79384 * a + 8.28479 * np.power(a,0.5)
         dtheta = 1e15
         while np.any(np.abs(dtheta) > 0.0001):
@@ -803,7 +785,7 @@ class SewerGraph:
         return theta 
 
     def _areaFromAngle(self, theta):
-        return np.multiply(self.G.es['areaFull'],(theta - np.sin(theta))) / (2*np.pi)
+        return np.multiply(self.G.es['Amax'],(theta - np.sin(theta))) / (2*np.pi)
 
     def _depth(self, theta):
         depth = 0.5*np.multiply(self.G.es['diam'] , (1 - np.cos(theta / 2)))
@@ -825,9 +807,9 @@ class SewerGraph:
         return ((5/3) - (2/3) * np.multiply(self._wettedPerimeterDerivative(theta) , self._hydraulicRadius(theta)))* np.power(self._hydraulicRadius(theta),2/3)
 
     # TODO: Add "Analytical Functions for Circular Cross Sections"
-    def update(self, t, dt, rainfall):
+    def update(self, t, dt, drainInflow):
         """
-        Updates the attributes of the network using the ode defined in "ode".
+        Updates the attributes of the Street network using the kinematic Model.
 
         Parameters:
         -----------
@@ -844,42 +826,162 @@ class SewerGraph:
             Updated depths ordered by igraph id
 
         """
-        def ode(t, x):
+        # keeps track of inflows for sewer coupling
+        drainOutflow = np.zeros(self.G.vcount())
+        def kineticFlow(t, dt, drainInflow, theta=0.6, phi = 0.6):
             """
-            Solves d_t = f - alpha * (d-ds)^5/3.
+            TODO: List assumptions. Uses mannings equation and continuity of mass to take the total inflow and write it as
+            a discharge considering the pipe shape.
 
             Parameters:
             -----------
-            t: time
-            x : variable of ode.
+            t : float
+                the current time in the ode
+            x : list(float)
+                list of depths
+            theta : float
+                one of the two weights for numerical pde method
+            phi : float
+                one of the two weights for numerical pde method
             """
-            y = np.zeros(self.G.vcount())
-            outflow = np.zeros(self.G.vcount())
-            incomingRunoff = np.zeros(self.G.vcount())
-            for i in self.G.topological_sorting():
-                # calculate incoming runoff, using top sorting to guarantee the previous runoffs are already computed
-                inEdges = self.G.vs[i].in_edges()
-                for e in inEdges:
-                    incomingRunoff[i] += self.G.vs['depth'][e.source]
 
-                # alpha in manning equation
-                a = (self.G.vs['width'][i] * np.power(self.G.vs['slope'][i], 0.5)) / (self.G.vs['area'][i] * self.G.vs['n'][i])
-                depth_above_invert = np.maximum(x[i] - self.G.vs['invert'][i], 0.0)
-                # outgoingRunoff
-                outflow[i] = a * np.power(depth_above_invert, 5/3)
-                y[i] = rainfall + incomingRunoff[i] - outflow[i]
-            print(f"incomingRunoff: {incomingRunoff}")
-            return y
-    
-        # NOTE: RK45 returns an iterator we need to use solve_ivp
-        solution = sc.integrate.solve_ivp(
-            ode, 
-            (t, t + dt), 
-            self.G.vs['depth'], 
-            method='RK45'
-        )
-        self.G.vs['depth'] = solution.y[:, -1]
-        return solution.y[:,-1]
+            #1. check acyclic
+            if not self.G.is_dag():
+                raise ValueError("Street Network must be acyclic.")
+
+            #2. top sort
+            order = self.G.topological_sorting()
+            pprint(order)
+
+            for nid in order:
+                #3. Get inflows
+                # skips any node without outgoing edges
+                if self.G.degree(nid, mode="out") == 0:
+                    continue
+                edge = self.G.vs[nid].out_edges()[0].index
+                Q1 = self.G.es[edge]['Q1']
+                A1 = self.G.es[edge]['A1']
+                Q2 = self.G.es[edge]['Q2']
+                A2 = self.G.es[edge]['A2']
+                Q1New = 0.0
+                A1New = 0.0
+                Q2New = 0.0
+                A2New = 0.0
+                slope = self.G.es[edge]['slope']
+                drainLength = self.G.vs[nid]['drainLength']
+                drainWidth = self.G.vs[nid]['drainWidth']
+                beta = np.power(slope,0.5) / self.G.es[edge]['n']
+
+                # check if node has drain
+                if self.G.vs[nid]['drain'] == 0:
+                    drainOutflow = 0.0
+                # TODO: Setup Overflowing
+                # check if drain is overflowing
+                # elif drainOverflows[nid] > 0.0:
+                    # drainOutflow = drainOverflows[nid]
+                # flow water into drain
+                else:
+                    drainOutflow = drainInflow[nid]
+                pprint(f"Drain Outflow for {nid}: {drainOutflow}")
+                # get Q2 of incoming edges
+                incomingQs = 0.0
+                for e in self.G.vs[nid].in_edges():
+                    incomingQs += e['Q2']
+                pprint(f"Incoming Qs: {incomingQs}")
+
+                Q1New = drainOutflow + incomingQs
+
+                
+                Amax = A_tbl[-1]
+                # pprint(f"A_tbl: {A_tbl}")
+                # pprint(f"A_tbl[-1]: {A_tbl[-1]}")
+                # pprint(f"A_tbl[0]: {A_tbl[0]}")
+                # pprint(f"Amax: {Amax}")
+                def phiInverse(x,p):
+                    f = psiFromAreaStreet((p["Q1New"] / p["n"]), p["A_tbl"], p["R_tbl"], p["yFull"]) - x
+                    fp = psiPrimeFromAreaStreet((p["Q1New"] / p["n"]), p["A_tbl"], p["R_tbl"], p["yFull"])
+                    return f, fp
+
+                p = {
+                        'Q1New': Q1New,
+                        'n': self.G.es[edge]["n"],
+                        'A_tbl': A_tbl,
+                        'R_tbl': R_tbl,
+                        'yFull': self.yFull
+                        }
+                A1New, _ = newtonBisection(0, Amax, phiInverse, tol=Amax*0.0001, p=p)
+                # pprint(f"A1New From Bisection: {A1New}")
+
+                c1 = (drainLength * theta) / (dt * phi)
+
+                c2 = c1 * ((1 - theta)*(A1New - A1) - theta*A2) + ((1 - phi) / phi)*(Q2 - Q1) - Q1New
+
+                def A2NewFunction(x,p):
+                    f = beta*psiFromAreaStreet(x, p["A_tbl"], p["R_tbl"], p["yFull"] ) + c1 * x + c2
+                    fp = beta*psiPrimeFromAreaStreet(x, p["A_tbl"], p["R_tbl"], p["yFull"]) + c1
+                    return f, fp
+                p = {
+                        'beta': beta,
+                        'c1': c1,
+                        'c2': c2,
+                        'A_tbl': A_tbl,
+                        'R_tbl': R_tbl,
+                        'yFull': self.yFull
+
+                        }
+                A2New, _ = newtonBisection(0, Amax, A2NewFunction, tol=Amax*0.0001, p=p, xinit=A2)
+
+                Q2New = beta * psiFromAreaStreet(A2New, A_tbl, R_tbl, self.yFull)
+                # TODO: Do depth after all areas computed
+                # d1New = depthFromAreaStreet(A2New)
+                # d2New = depthFromAreaStreet(A2New)
+
+                pprint(f" A1: {A1}")
+                pprint(f" A2: {A2}")
+                pprint(f" Q1: {Q1}")
+                pprint(f" Q2: {Q2}")
+                pprint(f" A1New: {A1New}")
+                pprint(f" A2New: {A2New}")
+                pprint(f" Q1New: {Q1New}")
+                pprint(f" Q2New: {Q2New}")
+
+                self.G.es[edge]['Q1New'] = Q1New
+                self.G.es[edge]['A1New'] = A1New
+                self.G.es[edge]['Q2New'] = Q2New
+                self.G.es[edge]['A2New'] = A2New
+
+                # pprint(self.G.vs[nid].in_edges())
+            # Update A,Q's
+            self.G.es['A1'] = self.G.es['A1New']
+            self.G.es['A2'] = self.G.es['A2New']
+            self.G.es['Q1'] = self.G.es['Q1New']
+            self.G.es['Q2'] = self.G.es['Q2New']
+            # compute depth's
+            for nid in order:
+                maxDepth = 0.0
+                for edge in self.G.vs[nid].out_edges():
+                    tempDepth = depthFromAreaStreet(edge['A2'], A_tbl, self.yFull)
+                    if tempDepth > maxDepth:
+                        maxDepth = tempDepth
+                for edge in self.G.vs[nid].in_edges():
+                    tempDepth = depthFromAreaStreet(edge['A1'], A_tbl, self.yFull)
+                    if tempDepth > maxDepth:
+                        maxDepth = tempDepth
+                if self.G.vs[nid]['depth'] > self.yFull:
+                    pprint(f"WARNING: Node {nid} lost {self.G.vs[nid]['depth'] - self.yFull} due to overflow. Forcing depth to yFull.")
+                    self.G.vs[nid]['depth'] = self.yFull
+                else:
+                    self.G.vs[nid]['depth'] = maxDepth
+                    
+
+        kineticFlow(t, dt, drainInflow)
+        # TODO: Add more reporting things here
+        averageArea = np.divide(self.G.es['A1'] + self.G.es['A2'],2.0) 
+        pprint(f"Average Area: {averageArea}")
+        pprint(f"New Depth:{self.G.vs['depth']}")
+        return self.G.vs['depth'], averageArea, drainOutflow
+
+
 
     def graphGeometry(self, id, file=None):
         theta = np.linspace(0.01, 2*np.pi - 0.01, 1000)
@@ -902,7 +1004,7 @@ class SewerGraph:
         axes[0, 0].set_ylabel('Area (m²)')
         axes[0, 0].set_title('Cross-sectional Area')
         axes[0, 0].grid(True, alpha=0.3)
-        axes[0, 0].axhline(y=self.G.es['areaFull'][0], color='r', linestyle='--', alpha=0.5, label='Full Area')
+        axes[0, 0].axhline(y=self.G.es['Amax'][0], color='r', linestyle='--', alpha=0.5, label='Full Area')
         axes[0, 0].legend()
 
         # Plot 2: Depth
@@ -952,7 +1054,7 @@ class SewerGraph:
         axes[2, 0].grid(True, alpha=0.3)
 
         # Plot 8: Fill Ratio (Area/AreaFull)
-        fill_ratio = area / self.G.es['areaFull'][id]
+        fill_ratio = area / self.G.es['Amax'][id]
         axes[2, 1].plot(theta, fill_ratio, 'brown', linewidth=2)
         axes[2, 1].set_xlabel('θ (radians)')
         axes[2, 1].set_ylabel('Fill Ratio')
