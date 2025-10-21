@@ -180,6 +180,7 @@ class SubcatchmentGraph:
         plt.savefig(f"figures/{fileName}.png")
 
 
+
 class StreetGraph:
     """Graph of Street portion of Hydraulic Network."""
     def __init__(self, file=None):
@@ -489,7 +490,6 @@ class StreetGraph:
         if fileName == None:
             fileName = "test"
         plt.savefig(f"figures/{fileName}.png")
-
 
 
 

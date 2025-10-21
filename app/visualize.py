@@ -11,12 +11,12 @@ from pprint import pprint
 from .network import SubcatchmentGraph, SewerGraph, StreetGraph
 
 # https://stackoverflow.com/questions/76752021/producing-a-gif-of-plot-over-time-python
-def visualizeExample( subcatchments, street, sewer, times, file="visualizeExample", cmap=plt.cm.plasma, fps=5):
+def visualizeExample( subcatchments, street, sewer, runoff, drainOverflow, drainInflow, times, file="visualizeExample", cmap=plt.cm.plasma, fps=5):
     """Creates a gif from igraph, t0, T, stepsize. weights are a function of time"""
 
     frames = []
-    for t in times:
-        fig = createFrame(subcatchments, street, sewer, t, cmap=cmap)
+    for it in range(len(times)):
+        fig = createFrame(subcatchments, street, sewer, runoff, drainOverflow, drainInflow, it, times, cmap=cmap)
         fig.canvas.draw()
         frames.append(np.array(fig.canvas.renderer._renderer))
         # Save GIF
@@ -25,7 +25,7 @@ def visualizeExample( subcatchments, street, sewer, times, file="visualizeExampl
                         fps=fps)
         
 
-def createFrame(subcatchments, street, sewer, t, cmap=plt.cm.plasma):
+def createFrame(subcatchments, street, sewer, runoff, drainOverflow, drainInflow, it, times, cmap=plt.cm.plasma):
     """Creates t-th frame of graph g and returns figure."""
     # Convert to networkx for visualizing
     aSubcatchments = np.array(subcatchments.G.get_adjacency())
@@ -68,7 +68,7 @@ def createFrame(subcatchments, street, sewer, t, cmap=plt.cm.plasma):
 
     # create time dependent weights
     M = g.number_of_edges()
-    weights = [(w + t) % M for w in range(2,M+2) ]
+    weights = [(w + times[it]) % M for w in range(2,M+2) ]
     # TODO: Make cmap stuff normalize over all 3 graphs
     norm = plt.Normalize(vmin=min(weights),vmax=max(weights))
 
@@ -147,9 +147,6 @@ if __name__ == "__main__":
 
 
     subcatchment = SubcatchmentGraph(file)
-    # pprint(subcatchment.hydraulicCoupling)
-    # pprint(subcatchment.G.vs['coupledID'])
-    # pprint(subcatchment.update(2,0.5,rainfall[3]))
     street = StreetGraph(file)
     pprint(street.G.summary())
     sewer = SewerGraph(file)
@@ -159,7 +156,10 @@ if __name__ == "__main__":
     T = 20
     stepsize = 1
     times = [t for t in range(t0, T, stepsize)]
+    runoff = []
+    drainOverflow = []
+    drainInflow = []
 
     # Layout for example
-    visualizeExample(subcatchment, street, sewer, times, cmap=plt.cm.plasma )
+    visualizeExample(subcatchment, street, sewer, runoff, drainOverflow, drainInflow, times, cmap=plt.cm.plasma )
 
