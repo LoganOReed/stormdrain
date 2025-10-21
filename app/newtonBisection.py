@@ -1,6 +1,6 @@
 import numpy as np
 
-def findroot(x1, x2, func, tol=1e-6, p=None, maxit=60):
+def newtonBisection(x1, x2, func, tol=1e-6, p=None, maxit=100):
     """
     Using a combination of Newton-Raphson and bisection, find the root of a
     function func bracketed between x1 and x2. The root will be refined until
@@ -18,7 +18,7 @@ def findroot(x1, x2, func, tol=1e-6, p=None, maxit=60):
     p : any, optional
         Auxiliary data structure that func may require
     maxit : int, optional
-        Maximum number of iterations (default: 60)
+        Maximum number of iterations (default: 100)
     
     Returns
     -------
@@ -33,6 +33,21 @@ def findroot(x1, x2, func, tol=1e-6, p=None, maxit=60):
        are not the same, otherwise x1 and x2 do not bracket the root.
     2. If func(x1) > func(x2) then the order of x1 and x2 should be switched.
     """
+    # Check f(low) <= f(high)
+    f1, df1 = func(x1)
+    f2, df2 = func(x2)
+    # Flip endpoints if not appropriate
+    if f1 > f2:
+        xt = x1
+        ft = f1
+        dft = df1
+        x1 = x2
+        f1 = f2
+        df1 = df2
+        x2 = xt
+        f2 = ft
+        dft = dft
+    
     # Initialize
     x = (x1 + x2) / 2.0  # Initial guess
     xlo = x1
@@ -58,7 +73,7 @@ def findroot(x1, x2, func, tol=1e-6, p=None, maxit=60):
             dxold = dx
             dx = f / df
             temp = x
-            x -= dx
+            x = x - dx
             if temp == x:
                 break
         
@@ -80,3 +95,6 @@ def findroot(x1, x2, func, tol=1e-6, p=None, maxit=60):
         return rts, n
     else:
         return rts, 0
+
+if __name__ == "__main__":
+    print("Dont call this :(")

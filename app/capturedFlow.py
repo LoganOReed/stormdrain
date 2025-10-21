@@ -8,7 +8,7 @@ from .newton_bisection import findroot
 
 # TODO: Create enum of desired drains
 # TODO: Have v0 depend on enum parameter
-def getCapturedFlow(Q, A, Sx, L, W):
+def capturedFlow(Q, A, Sx, L, W):
     """Computes Flow Captured from a P-50x100 drain on grade where street has slope Sx, A is cross sectional area, Q is flow, L,W are length and width of drain."""
     # NOTE: This is specific to P-50x100, to use other drains change this
     v0 = 0.74 + 2.44 * L - 0.27 * L*L + 0.02 * L*L*L
@@ -30,4 +30,4 @@ if __name__ == "__main__":
     for i in range(1,100):
         # pprint(f"Captured Flow: {getCapturedFlow(3*i, i, 0.003, 0.1,0.1 )}")
         # pprint(f"Total Flow: {3*i}")
-        pprint(f"Captured Flow Percentage: {100*getCapturedFlow(3*i, i, 0.003, 0.1,0.1 ) / (3*i)}%")
+        pprint(f"Captured Flow Percentage: {100*capturedFlow(3*i, i, 0.003, 0.1,0.1 ) / (3*i)}%")

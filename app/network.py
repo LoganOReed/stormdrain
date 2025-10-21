@@ -2,11 +2,13 @@ import igraph as ig
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy as sc
-from oct2py import octave
 import pandas as pd
 import random
 from pprint import pprint
-from .newton_bisection import findroot
+from .newtonBisection import newtonBisection
+from .capturedFlow import capturedFlow
+from . import oc, depthFromAreaStreet, psiFromAreaStreet, psiPrimeFromAreaStreet
+
 
 # TODO: create the lookup tables from appendix C in ch. 2 instead of computing directly
 
@@ -185,10 +187,9 @@ class StreetGraph:
     """Graph of Street portion of Hydraulic Network."""
     def __init__(self, file=None):
         super(StreetGraph, self).__init__()
-        octave.addpath(octave.genpath("./octave"))
-        self.depthFromArea = octave.depth_Y_from_area
-        self.psiFromArea = octave.psi_from_area
-        self.psiPrimeFromArea = octave.psi_prime_from_area
+        self.depthFromArea = depthFromAreaStreet
+        self.psiFromArea = psiFromAreaStreet
+        self.psiPrimeFromArea = psiPrimeFromAreaStreet
         self.yFull = 0.3197 # diff between lowest and highest point from choice of Street Parameters
         if file == None:
             self.G = ig.Graph(n=5,edges=[(0,1),(2,3),(3,1),(1,4)],directed=True,
@@ -205,39 +206,6 @@ class StreetGraph:
                                   'type': np.array([0,0,0,0,1])
                                   # 'subcatchmentCoupling': np.array([-1,-1,-1,-1,-1])
                                   })
-            # calculate the lengths of each pipe
-            for e in self.G.es:
-                s = np.array([self.G.vs[e.source]['x'], self.G.vs[e.source]['y'], self.G.vs[e.source]['z']])
-                d = np.array([self.G.vs[e.target]['x'], self.G.vs[e.target]['y'], self.G.vs[e.target]['z']])
-                self.G.es[e.index]['length'] = np.linalg.norm(s - d)
-            # calculate the slope of each pipe
-            for e in self.G.es:
-                slope = self.G.vs[e.source]['z'] - self.G.vs[e.target]['z']
-                if slope < 0.0001:
-                    print(f"WARNING: slope for edge {e} is too small.")
-                self.G.es[e.index]['slope'] = self.G.vs[e.source]['z'] - self.G.vs[e.target]['z']
-            # print(self.G.es['slope'])
-            # TODO: add offset height calculations
-            # Needs to be given a priori
-            self.G.es['offsetHeight'] = [0.0 for _ in range(self.G.ecount())]
-
-            # Geometry of Pipes (Circular in this case)
-            self.G.es['diam'] = [0.5,0.5,0.8,1.0]
-            # TODO: Decide if this should be stored (or computed) elsewhere
-            self.G.es['areaFull'] = 0.25*np.pi*np.power(self.G.es['diam'],2)
-            self.G.es['hydraulicRadiusFull'] = np.multiply(0.25,self.G.es['diam'])
-            self.G.es['sectionFactorFull'] = self.G.es['areaFull']*np.power(self.G.es['hydraulicRadiusFull'],2/3)
-
-            # self.G.es['flow'] = [0.0,0.0,0.0,0.0]
-            self.G.es['flow'] = [0.1,0.2,0.1,0.1]
-
-            self._steadyFlow(0,[0.1,0.1,0.1,0.1])
-
-            # Create plot to test circular functions
-            # TODO: Add plot generation for theta between 0 and pi
-            # Calculate all functions
-            for i in range(4):
-                self.graphGeometry(i,file=f"circularPipeGeometry{i}")
         else:
             data = pd.read_csv(f"data/{file}.csv")
             data = data[data["type"].str.contains("STREET")]
@@ -287,45 +255,43 @@ class StreetGraph:
                       # TODO: I need to decide if coupling occurs at this level or the level above
                       # 'subcatchmentCoupling': np.array([-1,-1,-1,-1,-1])
                       })
-            # calculate the lengths of each pipe
-            for e in self.G.es:
-                s = np.array([self.G.vs[e.source]['x'], self.G.vs[e.source]['y'], self.G.vs[e.source]['z']])
-                d = np.array([self.G.vs[e.target]['x'], self.G.vs[e.target]['y'], self.G.vs[e.target]['z']])
-                self.G.es[e.index]['length'] = np.linalg.norm(s - d)
-            # calculate the slope of each pipe
-            for e in self.G.es:
-                slope = (self.G.vs[e.source]['z'] - self.G.vs[e.target]['z']) / self.G.es[e.index]['length']
-                if slope < 0.0001:
-                    print(f"WARNING: slope for edge ({e.source}, {e.target}) is too small.")
-                    print(f"{e.source}: ({self.G.vs[e.source]['x']}, {self.G.vs[e.source]['y']}, {self.G.vs[e.source]['z']})")
-                    print(f"{e.target}: ({self.G.vs[e.target]['x']}, {self.G.vs[e.target]['y']}, {self.G.vs[e.target]['z']})")
-                self.G.es[e.index]['slope'] = slope
-            # pprint(f"Slopes: {self.G.es['slope']}")
-            # pprint(f"Length: {self.G.es['length']}")
-            # TODO: add offset height calculations
-            # Needs to be given a priori
-            self.G.es['offsetHeight'] = [0.0 for _ in range(self.G.ecount())]
+        # calculate the lengths of each pipe
+        for e in self.G.es:
+            s = np.array([self.G.vs[e.source]['x'], self.G.vs[e.source]['y'], self.G.vs[e.source]['z']])
+            d = np.array([self.G.vs[e.target]['x'], self.G.vs[e.target]['y'], self.G.vs[e.target]['z']])
+            self.G.es[e.index]['length'] = np.linalg.norm(s - d)
+        # calculate the slope of each pipe
+        for e in self.G.es:
+            slope = (self.G.vs[e.source]['z'] - self.G.vs[e.target]['z']) / self.G.es[e.index]['length']
+            if slope < 0.0001:
+                print(f"WARNING: slope for edge ({e.source}, {e.target}) is too small.")
+                print(f"{e.source}: ({self.G.vs[e.source]['x']}, {self.G.vs[e.source]['y']}, {self.G.vs[e.source]['z']})")
+                print(f"{e.target}: ({self.G.vs[e.target]['x']}, {self.G.vs[e.target]['y']}, {self.G.vs[e.target]['z']})")
+            self.G.es[e.index]['slope'] = slope
+        # pprint(f"Slopes: {self.G.es['slope']}")
+        # pprint(f"Length: {self.G.es['length']}")
+        # TODO: add offset height calculations
+        # Needs to be given a priori
+        self.G.es['offsetHeight'] = [0.0 for _ in range(self.G.ecount())]
 
-            # Geometry of Pipes (Circular in this case)
-            # self.G.es['diam'] = [0.5 for _ in self.G.es]
-            # pprint(f"Diam: {self.G.es['diam']}")
-            # TODO: Decide if this should be stored (or computed) elsewhere
-            # self.G.es['areaFull'] = 0.25*np.pi*np.power(self.G.es['diam'],2)
-            # self.G.es['hydraulicRadiusFull'] = np.multiply(0.25,self.G.es['diam'])
-            # self.G.es['sectionFactorFull'] = self.G.es['areaFull']*np.power(self.G.es['hydraulicRadiusFull'],2/3)
+        # Geometry of Pipes (Circular in this case)
+        # self.G.es['diam'] = [0.5 for _ in self.G.es]
+        # pprint(f"Diam: {self.G.es['diam']}")
+        # TODO: Decide if this should be stored (or computed) elsewhere
+        # self.G.es['areaFull'] = 0.25*np.pi*np.power(self.G.es['diam'],2)
+        # self.G.es['hydraulicRadiusFull'] = np.multiply(0.25,self.G.es['diam'])
+        # self.G.es['sectionFactorFull'] = self.G.es['areaFull']*np.power(self.G.es['hydraulicRadiusFull'],2/3)
 
-            # 1 is source node and 2 is target node
-            self.G.es['Q1'] = np.zeros(self.G.ecount())
-            self.G.es['Q2'] = np.zeros(self.G.ecount())
-            self.G.es['A1'] = np.zeros(self.G.ecount())
-            self.G.es['A2'] = np.zeros(self.G.ecount())
-            # pprint(self.G.summary())
-
-            # self._steadyFlow(0,[0.1,0.1,0.1,0.1])
+        # 1 is source node and 2 is target node
+        self.G.es['Q1'] = np.zeros(self.G.ecount())
+        self.G.es['Q2'] = np.zeros(self.G.ecount())
+        self.G.es['A1'] = np.zeros(self.G.ecount())
+        self.G.es['A2'] = np.zeros(self.G.ecount())
+        # pprint(self.G.summary())
         
     def update(self, t, dt, rainfall):
         """
-        Updates the attributes of the network using the kinematic Model.
+        Updates the attributes of the Street network using the kinematic Model.
 
         Parameters:
         -----------
@@ -342,7 +308,8 @@ class StreetGraph:
             Updated depths ordered by igraph id
 
         """
-        def kineticFlow(t, x):
+        def 
+        def kineticFlow(t, x, theta=0.6, phi = 0.6):
             """
             TODO: List assumptions. Uses mannings equation and continuity of mass to take the total inflow and write it as
             a discharge considering the pipe shape.
@@ -353,6 +320,10 @@ class StreetGraph:
                 the current time in the ode
             x : list(float)
                 list of depths
+            theta : float
+                one of the two weights for numerical pde method
+            phi : float
+                one of the two weights for numerical pde method
             """
             #1. check acyclic
             if not self.G.is_dag():
