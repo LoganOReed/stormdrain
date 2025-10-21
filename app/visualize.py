@@ -73,25 +73,27 @@ def createFrame(subcatchments, street, sewer, t, cmap=plt.cm.plasma):
     pprint(f"Adjusted Edgelist: {newStreetEdgeList}")
 
     pprint(min(edge_colors))
-    # fig, ax = plt.subplots(nrows=2, ncols=2, figsize=(12,8))
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(nrows=2, ncols=2, figsize=(12,8))
+    # fig, ax = plt.subplots()
     # subcatchments
-    nx.draw_networkx_nodes(g, layout, nodelist=[i for i in range(subcatchments.G.vcount())], node_color="black", node_shape='s')
+    nx.draw_networkx_nodes(g, layout, nodelist=[i for i in range(subcatchments.G.vcount())], node_color="black", node_shape='s', ax=ax[0,0])
     nx.draw_networkx_edges(g, layout, 
                            edgelist=subcatchments.G.get_edgelist(),
                            style='dashed',
-                           arrows=False)
+                           arrows=False,
+                           ax=ax[0,0])
     # junctions
     streetNodeList = [i for i in range(subcatchments.G.vcount(),subcatchments.G.vcount() + street.G.vcount())]
-    nx.draw_networkx_nodes(g, layout, nodelist=[item for item, condition in zip(streetNodeList, street.G.vs["type"]) if condition == 0], node_color="indigo", node_shape='o')
-    nx.draw_networkx_nodes(g, layout, nodelist=[item for item, condition in zip(streetNodeList, street.G.vs["type"]) if condition == 1], node_color="black", node_shape='^')
+    nx.draw_networkx_nodes(g, layout, nodelist=[item for item, condition in zip(streetNodeList, street.G.vs["type"]) if condition == 0], node_color="indigo", node_shape='o', ax=ax[0,0])
+    nx.draw_networkx_nodes(g, layout, nodelist=[item for item, condition in zip(streetNodeList, street.G.vs["type"]) if condition == 1], node_color="black", node_shape='^', ax=ax[0,0])
     edges = nx.draw_networkx_edges(g, layout, 
                            edgelist=newStreetEdgeList,
                            arrowstyle="->",
                            arrowsize=10,
                            edge_color=edge_colors,
                            edge_cmap=cmap,
-                           width=2)
+                           width=2,
+                           ax=ax[0,0])
     # outflow
     # nx.draw_networkx_nodes(g, layout, nodelist=[7], node_color="black", node_shape='^')
 
@@ -101,7 +103,8 @@ def createFrame(subcatchments, street, sewer, t, cmap=plt.cm.plasma):
     pc = matplotlib.collections.PatchCollection(edges, cmap=cmap)
     pc.set_array(edge_colors)
     plt.colorbar(pc, ax=ax)
-    ax.set_axis_off()
+    ax[0,0].set_axis_off()
+    ax[1,0].set_axis_off()
     # plt.savefig(f"test.png")
     plt.show()
     return fig
