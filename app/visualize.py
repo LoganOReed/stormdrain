@@ -48,6 +48,12 @@ def createFrame(subcatchments, street, sewer, t, cmap=plt.cm.plasma):
     layout = dict(zip(ids, coords))
     pprint(layout)
 
+    # sewer layout
+    idsSewer = [i for i in range(sewer.G.vcount())]
+    coordsSewer = [list(coord) for coord in zip(sewer.G.vs["x"],sewer.G.vs["y"])]
+    layoutSewer = dict(zip(idsSewer, coordsSewer))
+
+
 
 
     # Create edges from networks
@@ -94,8 +100,20 @@ def createFrame(subcatchments, street, sewer, t, cmap=plt.cm.plasma):
                            edge_cmap=cmap,
                            width=2,
                            ax=ax[0,0])
-    # outflow
-    # nx.draw_networkx_nodes(g, layout, nodelist=[7], node_color="black", node_shape='^')
+
+
+    # sewer
+    nx.draw_networkx_nodes(nxSewer, layoutSewer, nodelist=[item for item, condition in zip(idsSewer, sewer.G.vs["type"]) if condition == 0], node_color="indigo", node_shape='o', ax=ax[1,0])
+    nx.draw_networkx_nodes(nxSewer, layoutSewer, nodelist=[item for item, condition in zip(idsSewer, sewer.G.vs["type"]) if condition == 1], node_color="black", node_shape='^', ax=ax[1,0])
+    edges = nx.draw_networkx_edges(g, layout, 
+                           edgelist=newStreetEdgeList,
+                           arrowstyle="->",
+                           arrowsize=10,
+                           edge_color=edge_colors,
+                           edge_cmap=cmap,
+                           width=2,
+                           ax=ax[1,0])
+
 
 
 
@@ -129,15 +147,4 @@ if __name__ == "__main__":
     times = [t for t in range(t0, T, stepsize)]
 
     # Layout for example
-    layout = {
-            0: [0.5,2.5],
-            1: [1.5,2.5],
-            2: [1.5,0.5],
-            3: [1.0,2.0],
-            4: [2.0,2.0],
-            5: [2.0,1.0],
-            6: [1.0,1.0],
-            7: [0.0,1.0]
-        }
-
     visualizeExample(subcatchment, street, sewer, times, cmap=plt.cm.plasma )
