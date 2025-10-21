@@ -12,7 +12,8 @@ import random
 import csv
 from pprint import pprint
 from .network import SubcatchmentGraph, SewerGraph, StreetGraph
-from .newton_bisection import findroot
+from .newtonBisection import newtonBisection
+
 
 
 
@@ -26,11 +27,9 @@ if __name__ == "__main__":
 
 
     subcatchment = SubcatchmentGraph(file)
-    # pprint(subcatchment.hydraulicCoupling)
-    # pprint(subcatchment.G.vs['coupledID'])
-    # pprint(subcatchment.update(2,0.5,rainfall[3]))
     street = StreetGraph(file)
     pprint(street.G.summary())
+    street.update(0,0.5,1.0)
     sewer = SewerGraph(file)
 
     # TODO: Have subcatchment coupling happen by passing hydraulicCoupling and runoff to sewer update function

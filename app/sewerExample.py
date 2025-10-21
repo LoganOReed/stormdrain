@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import scipy as sc
 import random
 from .network import SubcatchmentGraph, SewerGraph
-from .newton_bisection import findroot
+from .newtonBisection import newtonBisection
 
 if __name__ == "__main__":
     rainfall = [0.0,0.5,1.0,0.75,0.5,0.25,0.0]

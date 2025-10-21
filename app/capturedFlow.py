@@ -4,7 +4,8 @@ import matplotlib.pyplot as plt
 import scipy as sc
 import random
 from pprint import pprint
-from .newton_bisection import findroot
+from .newtonBisection import newtonBisection
+
 
 # TODO: Create enum of desired drains
 # TODO: Have v0 depend on enum parameter

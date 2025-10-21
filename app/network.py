@@ -308,7 +308,6 @@ class StreetGraph:
             Updated depths ordered by igraph id
 
         """
-        def 
         def kineticFlow(t, x, theta=0.6, phi = 0.6):
             """
             TODO: List assumptions. Uses mannings equation and continuity of mass to take the total inflow and write it as
@@ -331,12 +330,29 @@ class StreetGraph:
 
             #2. top sort
             order = self.G.topological_sorting()
+            pprint(order)
 
             for nid in order:
                 #3. Get inflows
+                # skips any node without outgoing edges
+                if self.G.degree(nid, mode="out") == 0:
+                    continue
+                # TODO: Add overflowing drains
+                edge = self.G.vs[nid].out_edges()[0].index
+                Q1 = self.G.es[edge]['Q1']
+                A1 = self.G.es[edge]['A1']
+                Q2 = self.G.es[edge]['Q2']
+                A2 = self.G.es[edge]['A2']
+                slope = self.G.es[edge]['slope']
+                # pprint(edge)
+                # pprint(Q1)
+                # pprint(A1)
+                # pprint(Q2)
+                # pprint(A2)
+
+                drainOutflow = capturedFlow(self.G.es[edge]['Q1'], self.G.es[edge]['A1'], Sx, L, W)
                 # TODO: Continue
-                pass
-        pass
+        kineticFlow(0,0)
 
 
     def graphGeometry(self, id, file=None):
