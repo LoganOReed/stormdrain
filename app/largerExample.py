@@ -13,12 +13,14 @@ import csv
 from pprint import pprint
 from .network import SubcatchmentGraph, SewerGraph, StreetGraph
 from .newtonBisection import newtonBisection
+from .visualize import visualize
 
 
 
 
 
 if __name__ == "__main__":
+    T = 7
     rainfall = [0.0,0.5,1.0,0.75,0.5,0.25,0.0]
     # rainfall = [0.0,0.5,1.0,0.75,0.5,0.25,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]
     rainfall = [e * 0.0254 for e in rainfall]
@@ -29,24 +31,23 @@ if __name__ == "__main__":
     subcatchment = SubcatchmentGraph(file)
     street = StreetGraph(file)
     pprint(street.G.summary())
-    street.update(0,0.5,1.0)
+    street.update(0,0.5)
     sewer = SewerGraph(file)
 
     # TODO: Have subcatchment coupling happen by passing hydraulicCoupling and runoff to sewer update function
 
+    dt = 1
+    for t in range(len(rainfall)):
+        subcatchmentDepth, runoff = subcatchment.update(t, dt, rainfall[t])
+        pprint(f"SubcatchmentDepth: {subcatchmentDepth}")
+        pprint(f"runoff: {runoff}")
+        
 
+    # TODO: Actually store these 
+    runoff = []
+    drainOverflow = []
+    drainInflow = []
+    times = [i for i in range(T)]
 
-    # Create plot for disconnected subcatchments
-    scs = []
-    for i in range(len(rainfall)):
-        scs.append(subcatchment.update(2*i,0.5,rainfall[i]))
-        scs.append(subcatchment.update(2*i+1,0.5,rainfall[i]))
-    # print(f"list of depths at each time:{scs}")
-    # print(f"After 2 step: {g.G.vs['depth']}")
-    ts = []
-    for i in range(2*len(rainfall)):
-        ts.append(i*0.5)
-    subcatchment.visualize(ts, scs, "disconnected")
-    
-    
-    #
+    visualize(subcatchment, street, sewer, runoff, drainOverflow, drainInflow, times, cmap=plt.cm.plasma )
+

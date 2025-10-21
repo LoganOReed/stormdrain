@@ -20,7 +20,7 @@ def capturedFlow(Q, A, Sx, L, W):
     e1 = alpha - 2*np.power(alpha,0.5)*W + W*W
     e1 = e1 / alpha
     e0 = A - A * e1 * e1
-    pprint(e0)
+    # pprint(e0)
     qc = Q*(rf * e0 + rs * (1 - e0))
     return qc
 

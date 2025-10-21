@@ -1,6 +1,6 @@
 import numpy as np
 
-def newtonBisection(x1, x2, func, tol=1e-6, p=None, maxit=100):
+def newtonBisection(x1, x2, func, tol=1e-6, p=None, maxit=100, xinit = None):
     """
     Using a combination of Newton-Raphson and bisection, find the root of a
     function func bracketed between x1 and x2. The root will be refined until
@@ -34,9 +34,11 @@ def newtonBisection(x1, x2, func, tol=1e-6, p=None, maxit=100):
     2. If func(x1) > func(x2) then the order of x1 and x2 should be switched.
     """
     # Check f(low) <= f(high)
-    f1, df1 = func(x1)
-    f2, df2 = func(x2)
+    f1, df1 = func(x1,p)
+    f2, df2 = func(x2,p)
     # Flip endpoints if not appropriate
+    # print(f"f1: {f1}")
+    # print(f"f2: {f2}")
     if f1 > f2:
         xt = x1
         ft = f1
@@ -49,7 +51,10 @@ def newtonBisection(x1, x2, func, tol=1e-6, p=None, maxit=100):
         dft = dft
     
     # Initialize
-    x = (x1 + x2) / 2.0  # Initial guess
+    if xinit == None:
+        x = (x1 + x2) / 2.0  # Initial guess
+    else:
+        x = xinit
     xlo = x1
     xhi = x2
     dxold = np.abs(x2 - x1)

@@ -11,7 +11,7 @@ from pprint import pprint
 from .network import SubcatchmentGraph, SewerGraph, StreetGraph
 
 # https://stackoverflow.com/questions/76752021/producing-a-gif-of-plot-over-time-python
-def visualizeExample( subcatchments, street, sewer, runoff, drainOverflow, drainInflow, times, file="visualizeExample", cmap=plt.cm.plasma, fps=5):
+def visualize( subcatchments, street, sewer, runoff, drainOverflow, drainInflow, times, file="visualizeExample", cmap=plt.cm.plasma, fps=5):
     """Creates a gif from igraph, t0, T, stepsize. weights are a function of time"""
 
     frames = []
@@ -106,10 +106,10 @@ def createFrame(subcatchments, street, sewer, runoff, drainOverflow, drainInflow
 
     # Coupled Edges
     # [tuple(map(lambda x: x + subcatchments.G.vcount(), t)) for t in street.G.get_edgelist()]
-    subcatchmentCoupling = [i for i in range(subcatchment.G.vcount())]
-    streetCoupling = [street.G.vs["coupledID"].index(i) for i in subcatchment.hydraulicCoupling]
+    subcatchmentCoupling = [i for i in range(subcatchments.G.vcount())]
+    streetCoupling = [street.G.vs["coupledID"].index(i) for i in subcatchments.hydraulicCoupling]
     couplingEdges = [coord for coord in zip(subcatchmentCoupling,streetCoupling)]
-    couplingEdges = [(item[0], item[1] + subcatchment.G.vcount()) for item in couplingEdges]
+    couplingEdges = [(item[0], item[1] + subcatchments.G.vcount()) for item in couplingEdges]
     nx.draw_networkx_edges(g, layout, 
                            edgelist=couplingEdges,
                            style='dashed',
