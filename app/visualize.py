@@ -85,8 +85,11 @@ def createFrame(subcatchments, street, sewer, t, cmap=plt.cm.plasma):
     nx.draw_networkx_nodes(g, layout, nodelist=[i for i in range(subcatchments.G.vcount())], node_color="black", node_shape='s', ax=ax[0,0])
     nx.draw_networkx_edges(g, layout, 
                            edgelist=subcatchments.G.get_edgelist(),
-                           style='dashed',
-                           arrows=False,
+                           arrowstyle="->",
+                           arrowsize=10,
+                           edge_color=edge_colors,
+                           edge_cmap=cmap,
+                           width=2,
                            ax=ax[0,0])
     # junctions
     streetNodeList = [i for i in range(subcatchments.G.vcount(),subcatchments.G.vcount() + street.G.vcount())]
@@ -101,6 +104,17 @@ def createFrame(subcatchments, street, sewer, t, cmap=plt.cm.plasma):
                            width=2,
                            ax=ax[0,0])
 
+    # Coupled Edges
+    # [tuple(map(lambda x: x + subcatchments.G.vcount(), t)) for t in street.G.get_edgelist()]
+    subcatchmentCoupling = [i for i in range(subcatchment.G.vcount())]
+    streetCoupling = [street.G.vs["coupledID"].index(i) for i in subcatchment.hydraulicCoupling]
+    couplingEdges = [coord for coord in zip(subcatchmentCoupling,streetCoupling)]
+    couplingEdges = [(item[0], item[1] + subcatchment.G.vcount()) for item in couplingEdges]
+    nx.draw_networkx_edges(g, layout, 
+                           edgelist=couplingEdges,
+                           style='dashed',
+                           arrows=False,
+                           ax=ax[0,0])
 
     # sewer
     nx.draw_networkx_nodes(nxSewer, layoutSewer, nodelist=[item for item, condition in zip(idsSewer, sewer.G.vs["type"]) if condition == 0], node_color="indigo", node_shape='o', ax=ax[1,0])
@@ -148,3 +162,4 @@ if __name__ == "__main__":
 
     # Layout for example
     visualizeExample(subcatchment, street, sewer, times, cmap=plt.cm.plasma )
+
