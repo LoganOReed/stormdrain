@@ -448,20 +448,20 @@ class StreetGraph:
 
                 # pprint(self.G.vs[nid].in_edges())
             # Update A,Q's
-            self.G.es['A1'] = self.G.es['A1New']
-            self.G.es['A2'] = self.G.es['A2New']
-            self.G.es['Q1'] = self.G.es['Q1New']
-            self.G.es['Q2'] = self.G.es['Q2New']
+            self.G.es['A1'] = np.nan_to_num(self.G.es['A1New'])
+            self.G.es['A2'] = np.nan_to_num(self.G.es['A2New'])
+            self.G.es['Q1'] = np.nan_to_num(self.G.es['Q1New'])
+            self.G.es['Q2'] = np.nan_to_num(self.G.es['Q2New'])
             peakDischarge = np.max(np.abs(self.G.es['Q1'] + self.G.es['Q2']))
             # compute depth's
             for nid in order:
                 maxDepth = 0.0
                 for edge in self.G.vs[nid].out_edges():
-                    tempDepth = depthFromAreaStreet(edge['A2'], A_tbl, self.yFull)
+                    tempDepth = depthFromAreaStreet(edge['A1'], A_tbl, self.yFull)
                     if tempDepth > maxDepth:
                         maxDepth = tempDepth
                 for edge in self.G.vs[nid].in_edges():
-                    tempDepth = depthFromAreaStreet(edge['A1'], A_tbl, self.yFull)
+                    tempDepth = depthFromAreaStreet(edge['A2'], A_tbl, self.yFull)
                     if tempDepth > maxDepth:
                         maxDepth = tempDepth
                 if self.G.vs[nid]['depth'] > self.yFull:
@@ -958,20 +958,20 @@ class SewerGraph:
 
                 # pprint(self.G.vs[nid].in_edges())
             # Update A,Q's
-            self.G.es['A1'] = self.G.es['A1New']
-            self.G.es['A2'] = self.G.es['A2New']
-            self.G.es['Q1'] = self.G.es['Q1New']
-            self.G.es['Q2'] = self.G.es['Q2New']
+            self.G.es['A1'] = np.nan_to_num(self.G.es['A1New'])
+            self.G.es['A2'] = np.nan_to_num(self.G.es['A2New'])
+            self.G.es['Q1'] = np.nan_to_num(self.G.es['Q1New'])
+            self.G.es['Q2'] = np.nan_to_num(self.G.es['Q2New'])
             peakDischarge = np.max(np.abs(self.G.es['Q1'] + self.G.es['Q2']))
             # compute depth's
             for nid in order:
                 maxDepth = 0.0
                 for edge in self.G.vs[nid].out_edges():
-                    tempDepth = depthFromAreaStreet(edge['A2'], A_tbl, self.yFull)
+                    tempDepth = depthFromAreaStreet(edge['A1'], A_tbl, self.yFull)
                     if tempDepth > maxDepth:
                         maxDepth = tempDepth
                 for edge in self.G.vs[nid].in_edges():
-                    tempDepth = depthFromAreaStreet(edge['A1'], A_tbl, self.yFull)
+                    tempDepth = depthFromAreaStreet(edge['A2'], A_tbl, self.yFull)
                     if tempDepth > maxDepth:
                         maxDepth = tempDepth
                 if self.G.vs[nid]['depth'] > self.yFull:
