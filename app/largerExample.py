@@ -72,10 +72,10 @@ if __name__ == "__main__":
         drainInflows.append(drainInflow)
 
         # update sewer
-        sewerDepth, sewerEdgeArea, drainOutflow = sewer.update(t,dt,drainInflow)
-        sewerDepths.append(streetDepth)
-        sewerEdgeAreas.append(streetEdgeArea)
-        drainOutflows.append(drainOutflow)
+        sewerDepth, sewerEdgeArea, drainOverflow = sewer.update(t,dt,drainInflow)
+        sewerDepths.append(sewerDepth)
+        sewerEdgeAreas.append(sewerEdgeArea)
+        drainOutflows.append(drainOverflow)
         # pprint(f"Inflow: {drainInflow}")
         # self.G.vs['depth'], averageArea
 
