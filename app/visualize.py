@@ -67,13 +67,13 @@ def createFrame(subcatchment, street, streetYFull, sewer, sewerYFull, subcatchme
     # weights = [(w + times[it]) % M for w in range(2,M+2) ]
     # TODO: Make cmap stuff normalize over all 3 graphs
     norm = plt.Normalize(vmin=0,vmax=max(streetYFull,0))
-    normSewer = plt.Normalize(vmin=0,vmax=max(streetYFull*4,0))
+    normRunoff = plt.Normalize(vmin=0,vmax=max(0.05,0))
     # TODO: Choose this in a better way
     # norm = plt.Normalize(vmin=0,vmax=max(streetYFull,sewerYFull))
 
     # edge_colors = [cmap(norm(w)) for w in weights]
     subcatchmentNodesColors = [cmap(norm(w)) for w in subcatchmentDepths[it]]
-    runoffsColors = [cmap(norm(w)) for w in runoffs[it]]
+    runoffsColors = [cmap(normRunoff(w)) for w in runoffs[it]]
     streetNodesColors = [cmap(norm(w)) for w in streetDepths[it]]
     streetEdgeColors = [cmap(norm(w)) for w in streetEdgeAreas[it]]
     sewerNodesColors = [cmap(norm(w)) for w in sewerDepths[it]]
@@ -145,7 +145,7 @@ def createFrame(subcatchment, street, streetYFull, sewer, sewerYFull, subcatchme
                            edgelist=sewer.G.get_edgelist(),
                            arrowstyle="->",
                            arrowsize=10,
-                           edge_color=sewerNodesColors,
+                           edge_color=sewerEdgeColors,
                            edge_cmap=cmap,
                            width=2,
                            ax=ax[1,0])
