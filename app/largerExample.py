@@ -21,11 +21,12 @@ from .visualize import visualize
 
 if __name__ == "__main__":
     # rainfall = [0.0,0.5,1.0,0.75,0.5,0.25,0.0]
-    rainfall = [0.01,0.5,1.0,1.1,1.3,1.5,1.8,2.0,2.0,2.0,2.0,2.0,2.0,2.0,2.0,2.0,2.0,2.0,2.0,2.0,2.0,1.6,1.3,1.2,1.1,0.85,0.75]
+    rainfall = [0.01,0.5,1.0,1.1,1.3,1.5,1.8,2.0,2.0,2.0,2.0,2.0,2.0,2.0,2.0,2.0,2.0,2.0,2.0,2.0,2.0,1.6,1.3,1.2,1.1,0.85,0.75,0.5,0.3,0.1,0.1,0.1,0.1,0.0,0.0,0.0]
     # rainfall = rainfall + rainfall
-    rainfall = rainfall + rainfall[::-1]
+    # rainfall = rainfall + rainfall[::-1]
     # rainfall = [0.0,0.5,1.0,1.25,1.3,1.4,1.3,1.13,1.01,0.75,0.6,0.5,0.25,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]
-    # rainfall = [rain / 4 for rain in rainfall for _ in range(4)]
+    # rainfall = rainfall * 4
+    rainfall = [rain / 4 for rain in rainfall for _ in range(4)]
     # rainfall = [0.01,0.2,0.3,0.5,0.6,0.8,1.0,1.0,1.0,1.5,1.8,2.0,2.0,2.0,2.0,2.0,2.0]
     # rainfall = rainfall + rainfall[::-1]
 
@@ -99,7 +100,7 @@ if __name__ == "__main__":
 
     times = [i for i in range(T)]
 
-    visualize(subcatchment, street, street.yFull, sewer, 0.5, subcatchmentDepths, runoffs, streetDepths, streetEdgeAreas, sewerDepths, sewerEdgeAreas, drainOverflows, drainInflows, times, rainfall, peakDischarges, cmap=plt.cm.plasma, fps=5 )
+    visualize(subcatchment, street, street.yFull, sewer, 0.5, subcatchmentDepths, runoffs, streetDepths, streetEdgeAreas, sewerDepths, sewerEdgeAreas, drainOverflows, drainInflows, times, rainfall, peakDischarges, cmap=plt.cm.plasma, fps=20 )
 
     pprint(f"Runoffs: {runoffs}")
     pprint(f"streetDepths: {streetDepths}")
