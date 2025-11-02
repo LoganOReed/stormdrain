@@ -149,6 +149,23 @@ def psiFromAreaStreet(A, A_tbl, R_tbl, Y_full):
     
     return max(Psi,1e-10)
 
+
+def areaFromPsiStreet(Psi, A_tbl, R_tbl, Y_full):
+    """Reverse search for area from psi."""
+    def f(x):
+        return psiFromAreaStreet(x, A_tbl, R_tbl, Y_full) - Psi
+
+    sol = sp.optimize.root_scalar(f, method="brentq", bracket=(0.0, A_tbl[-1]), rtol=0.0001*A_tbl[-1])
+    A = sol.root
+    if sol.converged == False:
+        raise ValueError(f"ERROR: Brentq Failed to converge for psi {Psi}")
+    pprint(f"A = {A} vs Atrue = 0.291169")
+    return A
+
+
+    
+
+
 def psiPrimeFromAreaStreet(A, A_tbl, R_tbl, Y_full):
     """
     Calculate derivative of section factor (dPsi/dA) with respect to area

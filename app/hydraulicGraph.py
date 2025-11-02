@@ -7,7 +7,7 @@ import random
 from pprint import pprint
 from .newtonBisection import newtonBisection
 from .drainCapture import capturedFlow
-from .streetGeometry import depthFromAreaStreet, psiFromAreaStreet, psiPrimeFromAreaStreet
+from .streetGeometry import depthFromAreaStreet, psiFromAreaStreet, psiPrimeFromAreaStreet, areaFromPsiStreet
 from .circularGeometry import depthFromAreaCircle, psiFromAreaCircle, psiPrimeFromAreaCircle, areaFromPsiCircle
 from . import A_tbl, R_tbl, STREET_Y_FULL
 
@@ -200,12 +200,6 @@ class HydraulicGraph:
             # combine all of the incoming coupling terms
             incomingCoupledFlows = subcatchmentIncomingFlow + drainCaptureIncomingFlow + drainOverflow
 
-            # if self.graphType == "SEWER":
-            Afull = 0.7854 * self.G.es[eid]["yFull"] * self.G.es[eid]["yFull"]
-            testPsi = psiFromAreaCircle(0.35*Afull, self.G.es[eid]["yFull"])
-            areaFromPsiCircle(testPsi, self.G.es[eid]["yFull"])
-
-
 
             # coupledIncomingFlows = coupledInputs[self.G.vs[nid]["coupledID"]]
             # pprint(f"coupledIncomingFlows: {coupledIncomingFlows}")
@@ -214,6 +208,16 @@ class HydraulicGraph:
             self.G.es[eid]["Q1"] = incomingEdgeFlows + incomingCoupledFlows
             # pprint()
             #5. Compute A_1^n+1 using Manning and #4.
+            if self.G.es[eid]["Q1"] == 0.0:
+                self.G.es[eid]["A1"] = 0.0
+            elif self.graphType == "SEWER":
+                self.G.es[eid]["A1"] = areaFromPsiCircle(self.G.es[eid]["Q1"], self.G.es[eid]["yFull"])
+            else:
+                self.G.es[eid]["A1"] = areaFromPsiStreet(self.G.es[eid]["Q1"], A_tbl, R_tbl, self.G.es[eid]["yFull"])
+            pprint(self.G.es[eid]["A1"])
+
+
+
             # TODO: Add drainCaptureOutgoingFlow to C2 term
             #6. Setup nonlinear equation to get A_2^n+1
 
