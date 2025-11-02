@@ -57,8 +57,9 @@ if __name__ == "__main__":
     # TODO: Have subcatchment coupling happen by passing hydraulicCoupling and runoff to sewer update function
 
     # NOTE: Actual Update Loop
-    dt = 1
     peakDischarges = []
+    # 900 s = 15 min, needs to match rainfall array
+    dt = 900
     for t in range(len(rainfall)):
         subcatchmentDepth, runoffUnsorted = subcatchment.update(t, dt, rainfall[t])
         subcatchmentDepths.append(subcatchmentDepth)
