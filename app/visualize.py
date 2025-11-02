@@ -10,6 +10,16 @@ import matplotlib.pyplot as plt
 from pprint import pprint
 from .network import SubcatchmentGraph, SewerGraph, StreetGraph
 
+import matplotlib.ticker as mticker
+
+def seconds_to_hms(x, pos):
+    """
+    Converts a time in seconds to a string in HH:MM format.
+    """
+    hours = int(x // 3600)
+    minutes = int((x % 3600) // 60)
+    return f"{hours:02d}:{minutes:02d}"
+
 # https://stackoverflow.com/questions/76752021/producing-a-gif-of-plot-over-time-python
 def visualize( subcatchment, street, streetYFull, sewer, sewerYFull, subcatchmentDepths, runoffs, streetDepths, streetEdgeAreas, sewerDepths, sewerEdgeAreas, drainOverflows, drainInflows, times, rainfall, peakDischarges, file="visualizeExample", cmap=plt.cm.plasma, fps=5):
     """Creates a gif from igraph, t0, T, stepsize. weights are a function of time"""
@@ -158,7 +168,7 @@ def createFrame(subcatchment, street, streetYFull, sewer, sewerYFull, subcatchme
     ax[0,1].clear()
     ax[0,1].plot(time_hours, cumulative_rainfall, 
                  marker='o', linewidth=2, markersize=6, color='steelblue')
-    ax[0,1].set_xlabel('Time (15 min)', fontsize=10)
+    ax[0,1].set_xlabel('Time ', fontsize=10)
     ax[0,1].set_ylabel('Cumulative Rainfall (meters)', fontsize=10)
     ax[0,1].set_title('Cumulative Rainfall Over Time', fontsize=12, fontweight='bold')
     ax[0,1].grid(True, alpha=0.3)
@@ -175,7 +185,7 @@ def createFrame(subcatchment, street, streetYFull, sewer, sewerYFull, subcatchme
     ax[1,1].clear()
     ax[1,1].plot(time_hours, current_peak_discharges, 
                  marker='o', linewidth=2, markersize=6, color='crimson')
-    ax[1,1].set_xlabel('Time (15 min)', fontsize=10)
+    ax[1,1].set_xlabel('Time ', fontsize=10)
     ax[1,1].set_ylabel('Peak Discharge (m^3/s)', fontsize=10)
     ax[1,1].set_title('Peak Discharge Over Time', fontsize=12, fontweight='bold')
     ax[1,1].grid(True, alpha=0.3)
@@ -184,6 +194,9 @@ def createFrame(subcatchment, street, streetYFull, sewer, sewerYFull, subcatchme
     ax[1,1].set_xlim(times[0], times[-1])
     ax[1,1].set_ylim(0, max(abs(x) for x in peakDischarges) * 1.1)
 
+    formatter = mticker.FuncFormatter(seconds_to_hms)
+    ax[0,1].xaxis.set_major_formatter(formatter)
+    ax[1,1].xaxis.set_major_formatter(formatter)
 
     # create legend for color
     pc = matplotlib.collections.PatchCollection(edges, cmap=cmap)
