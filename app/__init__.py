@@ -1,5 +1,6 @@
 # from oct2py import Oct2Py
 import scipy as sp
+from enum import Enum
 # import oct2py
 
 # oc = Oct2Py(logger=None)
