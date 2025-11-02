@@ -14,11 +14,13 @@ from pprint import pprint
 from .network import SubcatchmentGraph, SewerGraph, StreetGraph
 from .newtonBisection import newtonBisection
 from .visualize import visualize
+from .rain import normalizeRainfall
 
 
 
-def example(file, rainfall, createVisualize=True):
+def example(file, rainfall, rainfallTimes, dt, createVisuals=True):
     """Generic Example function which can be called with different networks and rainfall."""
+
     subcatchmentDepths = []
     runoffs = []
     streetDepths = []
@@ -30,7 +32,6 @@ def example(file, rainfall, createVisualize=True):
     drainOutflows = []
 
 
-    T = len(rainfall)
 
 
     subcatchment = SubcatchmentGraph(file)
@@ -44,15 +45,18 @@ def example(file, rainfall, createVisualize=True):
     # NOTE: Actual Update Loop
     peakDischarges = []
     # 900 s = 15 min, needs to match rainfall array
-    dt = 900
-    for t in range(len(rainfall)):
-        subcatchmentDepth, runoffUnsorted = subcatchment.update(t, dt, rainfall[t])
+    T = max(rainfallTimes)
+    pprint(f"0 to {T}, total steps = {T / dt}")
+    ts = np.linspace(0,T,dt)
+    rain = np.interp(ts, rainfallTimes, rainfall)
+    for n in range(int(T/dt)):
+        subcatchmentDepth, runoffUnsorted = subcatchment.update(ts[n], dt, rain[n])
         subcatchmentDepths.append(subcatchmentDepth)
         # setup runoff
         runoff = np.zeros(street.G.vcount())
         i = 0
         for nid in subcatchment.hydraulicCoupling:
-            pprint(f"Search {nid} using find: {street.G.vs.find(coupledID=nid)}")
+            # pprint(f"Search {nid} using find: {street.G.vs.find(coupledID=nid)}")
             runoff[street.G.vs.find(coupledID=nid).index] = runoffUnsorted[i]
             # runoff[street.find(nid)] = runoffUnsorted[i]
             i += 1
@@ -63,15 +67,16 @@ def example(file, rainfall, createVisualize=True):
 
         drainOverflow = np.zeros(street.G.vcount())
 
-        streetDepth, streetEdgeArea, drainInflow, tempPeakDischarge = street.update(t,dt,runoff,drainOverflow)
+        streetDepth, streetEdgeArea, drainInflow, tempPeakDischarge = street.update(ts[n],dt,runoff,drainOverflow)
         if peakDischarge < tempPeakDischarge:
+            pprint(f"The largest is from street: {peakDischarge} < {tempPeakDischarge}")
             peakDischarge = tempPeakDischarge
         streetDepths.append(streetDepth)
         streetEdgeAreas.append(streetEdgeArea)
         drainInflows.append(drainInflow)
 
         # update sewer
-        sewerDepth, sewerEdgeArea, drainOverflow, tempPeakDischarge = sewer.update(t,dt,drainInflow)
+        sewerDepth, sewerEdgeArea, drainOverflow, tempPeakDischarge = sewer.update(ts[n],dt,drainInflow)
         if peakDischarge < tempPeakDischarge:
             peakDischarge = tempPeakDischarge
         sewerDepths.append(sewerDepth)
@@ -86,35 +91,27 @@ def example(file, rainfall, createVisualize=True):
         
     # TODO: Actually store these 
 
-    times = [i for i in range(T)]
+    if createVisuals == True:
+        visualize(subcatchment, street, street.yFull, sewer, 0.5, subcatchmentDepths, runoffs, streetDepths, streetEdgeAreas, sewerDepths, sewerEdgeAreas, drainOverflows, drainInflows, rainfallTimes, rainfall, peakDischarges, cmap=plt.cm.plasma, fps=20 )
 
-    if createVisualize == True:
-        visualize(subcatchment, street, street.yFull, sewer, 0.5, subcatchmentDepths, runoffs, streetDepths, streetEdgeAreas, sewerDepths, sewerEdgeAreas, drainOverflows, drainInflows, times, rainfall, peakDischarges, cmap=plt.cm.plasma, fps=20 )
-
-    pprint(f"Runoffs: {runoffs}")
-    pprint(f"streetDepths: {streetDepths}")
-    pprint(f"streetEdgeAreas: {streetEdgeAreas}")
-    pprint(f"drainInflows: {drainInflows}")
+    # pprint(f"Runoffs: {runoffs}")
+    # pprint(f"streetDepths: {streetDepths}")
+    # pprint(f"streetEdgeAreas: {streetEdgeAreas}")
+    # pprint(f"drainInflows: {drainInflows}")
 
    
 
 
 if __name__ == "__main__":
-    # rainfall = [0.0,0.5,1.0,0.75,0.5,0.25,0.0]
-    # rainfall = [0.01,0.5,1.0,1.1,1.3,1.5,1.8,2.0,2.0,2.0,2.0,2.0,2.0,2.0,2.0,2.0,2.0,2.0,2.0,2.0,2.0,1.6,1.3,1.2,1.1,0.85,0.75,0.5,0.3,0.1,0.1,0.1,0.1,0.0,0.0,0.0]
+    spaceConversion=0.0254
+    timeConversion=3600
+    dt = 600
     rainfall = np.array([0.10, 0.15, 0.25, 0.40, 0.60, 0.80, 0.70, 0.50, 0.30, 0.20, 0.10, 0.05, 0.0,0.0,0.0,0.0,0.0,0.0])
-
-    # rainfall = rainfall + rainfall
-    # rainfall = rainfall + rainfall[::-1]
-    # rainfall = [0.0,0.5,1.0,1.25,1.3,1.4,1.3,1.13,1.01,0.75,0.6,0.5,0.25,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]
-    # rainfall = rainfall * 4
-    rainfall = [e * 0.0254 for e in rainfall]
-    rainfall = [rain / 4 for rain in rainfall for _ in range(4)]
-    # rainfall = [0.01,0.2,0.3,0.5,0.6,0.8,1.0,1.0,1.0,1.5,1.8,2.0,2.0,2.0,2.0,2.0,2.0]
-    # rainfall = rainfall + rainfall[::-1]
-
-
+    # rainfall = np.array([0.10, 0.15, 0.25, 0.40, 0.60, 0.80, 0.70, 0.50, 0.30, 0.20, 0.10, 0.05])
+    # rainfall = [0.0,0.5,1.0,0.75,0.5]
+    rainfallTimes = [i for i in range(len(rainfall))]
+    rainfall, rainfallTimes = normalizeRainfall(rainfall, rainfallTimes, spaceConversion=0.0254, timeConversion=3600)
 
     file = "largerExample"
-    example(file, rainfall, createVisualize=True)
+    example(file, rainfall, rainfallTimes, dt, createVisuals=True)
 

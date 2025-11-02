@@ -12,93 +12,35 @@ from .circularGeometry import depthFromAreaCircle, psiFromAreaCircle, psiPrimeFr
 from . import A_tbl, R_tbl, STREET_Y_FULL, STREET_LANE_SLOPE
 
 
-# TODO: create the lookup tables from appendix C in ch. 2 instead of computing directly
-
-
-
-# TODO: Create numpy docs for each function
-
-        # self.G = ig.Graph(n=5, 
-        #                   edges=[[0,1],[2,3],[3,1],[1,4]],
-        #                   edge_attrs={
-        #                       'flowrate': [0.0, 0.0, 0.0, 0.0]
-        #                       'flowarea': [0.0, 0.0, 0.0, 0.0]
-        #                       },
-        #                   vertex_attrs={
-        #                       'type': ['j', 'j', 'j', 'j', 'o'],
-        #                       'depth': [0.0,0.0,0.0,0.0,0.0]
-        #                       },
-        #                   directed=True)
-
-       
-
 class SubcatchmentGraph:
-    """General Graph Structure, Parent of the three subgraphs."""
-    def __init__(self, file=None):
+    """Class which implements the Subcatchment Network."""
+    def __init__(self, file):
         super(SubcatchmentGraph, self).__init__()
-        if file == None:
-            self.G = ig.Graph(n=3,edges=[],directed=True,
-                              vertex_attrs={
-                                  'area': np.array([10000.0,10000.0,10000.0]),
-                                  'width': np.array([100.0,100.0,100.0]),
-                                  'slope': np.array([0.005,0.002,0.004]),
-                                  'n': np.array([0.017,0.017,0.017]),
-                                  'invert': np.array([0.0,0.016,0.035]),
-                                  'x': np.array([100,200,200]),
-                                  'y': np.array([100,100,0]),
-                                  'z': np.array([0,0,0]),
-                                  'depth': np.array([0.0,0.0,0.0])
-                                  })
-        else:
-            # TODO: Make csv also include subcatchment edges
-            data = pd.read_csv(f"data/{file}.csv")
-            data = data[data["type"].str.contains("SUBCATCHMENT")]
-            n = data.shape[0]
-            # pprint(n)
-            # pprint(data["type"])
-            # pprint(data["x"].astype(float))
-            # pprint(data)
-            # pprint(data["type"].str.contains("OUTFALL").astype(int))
+        # TODO: Make csv also include subcatchment edges
+        data = pd.read_csv(f"data/{file}.csv")
+        street = data[data["type"].str.contains("STREET")]
+        data = data[data["type"].str.contains("SUBCATCHMENT")]
+        n = data.shape[0]
 
-            # Needed to create edges
-            edges = []
-            # TODO: See above todo. will need this stuff for subcatchment edges
-            # mapToID = []
-            # i = 0
-            # for _, row in data.iterrows():
-            #     mapToID.append((row["id"],i))
-            #     i = i+1
-            #
-            #
-            #
-            # # Creates the edges by translating the node id's in the csv into 0-indexed sewer nodes
-            # for _, row in data.iterrows():
-            #     # pprint(f"{index}, {row["id"]}")
-            #     if row["outgoing"] != -1:
-            #         id = row["id"]
-            #         outgoing = row["outgoing"]
-            #         for pair in mapToID:
-            #             if pair[0] == id:
-            #                 id = pair[1]
-            #             if pair[0] == outgoing:
-            #                 outgoing = pair[1]
-            #         edges.append( (id, outgoing))
+        # TODO: Add ability to read in subcatchment edges Needed to create edges
+        edges = []
 
-            self.hydraulicCoupling = np.array(data["outgoing"].astype(int))
-            self.G = ig.Graph(n=n,edges=edges,directed=True,
-                  vertex_attrs={
-                      # TODO: Make this only include ids which aren't subcatchments, and have subcatchments which feed into other subs have coupledID = -1
-                      'coupledID': np.array(data["id"].astype(int)),
-                      'invert': np.zeros(n),
-                      'x': np.array(data["x"].astype(float)),
-                      'y': np.array(data["y"].astype(float)),
-                      'z': np.array(data["z"].astype(float)),
-                      'area': np.array([10000.0,10000.0,10000.0]),
-                      'width': np.array([100.0,100.0,100.0]),
-                      'slope': np.array(data["slope"].astype(float)),
-                      'n': np.array([0.017 for _ in range(n)]),
-                      'depth': np.zeros(n),
-                      })
+        self.hydraulicCoupling = np.array(data["outgoing"].astype(int))
+        self.G = ig.Graph(n=n,edges=edges,directed=True,
+              vertex_attrs={
+                  'coupledID': np.array(street["id"].astype(int)),
+                  'invert': np.zeros(n),
+                  'x': np.array(data["x"].astype(float)),
+                  'y': np.array(data["y"].astype(float)),
+                  'z': np.array(data["z"].astype(float)),
+                  # TODO: Make Area and width in csv
+                  'area': np.array([10000.0,10000.0,10000.0]),
+                  'width': np.array([100.0,100.0,100.0]),
+                  'slope': np.array(data["slope"].astype(float)),
+                  # TODO: Make n be in csv
+                  'n': np.array([0.017 for _ in range(n)]),
+                  'depth': np.zeros(n),
+                  })
 
     def update(self, t, dt, rainfall):
         """
@@ -110,7 +52,7 @@ class SubcatchmentGraph:
             initial time
         dt : float
             time between initial time and desired end time
-        rainfall : float
+        rainfall : list(float)
             average rainfall measured over the time [t,t+dt]
 
         """
@@ -150,7 +92,8 @@ class SubcatchmentGraph:
             method='RK45'
         )
         self.G.vs['depth'] = solution.y[:, -1]
-        return solution.y[:,-1] * self.G.vs['area'], outflow
+        pprint(f"outflow: {outflow * self.G.vs['area']}")
+        return solution.y[:,-1], outflow * self.G.vs['area']
 
     def visualize(self, times, depths, fileName=None):
         """
@@ -188,78 +131,63 @@ class SubcatchmentGraph:
 
 class StreetGraph:
     """Graph of Street portion of Hydraulic Network."""
-    def __init__(self, file=None):
+    def __init__(self, file):
         super(StreetGraph, self).__init__()
         self.depthFromArea = depthFromAreaStreet
         self.psiFromArea = psiFromAreaStreet
         self.psiPrimeFromArea = psiPrimeFromAreaStreet
         self.yFull = STREET_Y_FULL # diff between lowest and highest point from choice of Street Parameters
-        if file == None:
-            self.G = ig.Graph(n=5,edges=[(0,1),(2,3),(3,1),(1,4)],directed=True,
-                              vertex_attrs={
-                                  'invert': np.array([0.0,0.016,0.035]),
-                                  'x': np.array([100.0,100.0,200.0,200.0,0.0]),
-                                  'y': np.array([100.0,0.0,100.0,0.0,0.0]),
-                                  # z choice based on subcatchment slope, except for 4
-                                  # 4 is ARBITRARY
-                                  'z': np.array([0.5,0.0,0.6,0.4,-0.1]),
-                                  'depth': np.array([0.0,0.0,0.0,0.0,0.0]),
-                                  # 0 - junction
-                                  # 1 - outfall
-                                  'type': np.array([0,0,0,0,1])
-                                  })
-        else:
-            data = pd.read_csv(f"data/{file}.csv")
-            data = data[data["type"].str.contains("STREET")]
-            n = data.shape[0]
-            # pprint(n)
-            # pprint(data["type"])
-            # pprint(data["x"].astype(float))
-            # pprint(data)
-            # pprint(data["type"].str.contains("OUTFALL").astype(int))
+        data = pd.read_csv(f"data/{file}.csv")
+        data = data[data["type"].str.contains("STREET")]
+        n = data.shape[0]
+        # pprint(n)
+        # pprint(data["type"])
+        # pprint(data["x"].astype(float))
+        # pprint(data)
+        # pprint(data["type"].str.contains("OUTFALL").astype(int))
 
-            # Needed to create edges
-            edges = []
-            mapToID = []
-            i = 0
-            for _, row in data.iterrows():
-                mapToID.append((row["id"],i))
-                i = i+1
+        # Needed to create edges
+        edges = []
+        mapToID = []
+        i = 0
+        for _, row in data.iterrows():
+            mapToID.append((row["id"],i))
+            i = i+1
 
 
 
-            # Creates the edges by translating the node id's in the csv into 0-indexed sewer nodes
-            for _, row in data.iterrows():
-                # pprint(f"{index}, {row["id"]}")
-                if row["outgoing"] != -1:
-                    id = row["id"]
-                    outgoing = row["outgoing"]
-                    for pair in mapToID:
-                        if pair[0] == id:
-                            id = pair[1]
-                        if pair[0] == outgoing:
-                            outgoing = pair[1]
-                    edges.append( (id, outgoing))
+        # Creates the edges by translating the node id's in the csv into 0-indexed sewer nodes
+        for _, row in data.iterrows():
+            # pprint(f"{index}, {row["id"]}")
+            if row["outgoing"] != -1:
+                id = row["id"]
+                outgoing = row["outgoing"]
+                for pair in mapToID:
+                    if pair[0] == id:
+                        id = pair[1]
+                    if pair[0] == outgoing:
+                        outgoing = pair[1]
+                edges.append( (id, outgoing))
 
 
 
-            self.G = ig.Graph(n=n,edges=edges,directed=True,
-                  vertex_attrs={
-                      'coupledID': np.array(data["id"].astype(int)),
-                      'invert': np.zeros(n),
-                      'x': np.array(data["x"].astype(float)),
-                      'y': np.array(data["y"].astype(float)),
-                      'z': np.array(data["z"].astype(float)),
-                      'depth': np.zeros(n),
-                      # 0 - junction
-                      # 1 - outfall
-                      'type': np.array(data["type"].str.contains("OUTFALL").astype(int)),
-                      'drain': np.array(data["drain"].astype(int)),
-                      'drainType': np.array(data["drainType"]),
-                      'drainCoupledID': np.array(data["drainCoupledID"].astype(int)),
-                      'drainLength': np.array(data["drainLength"].astype(float)),
-                      'drainWidth': np.array(data["drainWidth"].astype(float)),
-                      })
+        self.G = ig.Graph(n=n,edges=edges,directed=True,
+              vertex_attrs={
+                  'coupledID': np.array(data["id"].astype(int)),
+                  'invert': np.zeros(n),
+                  'x': np.array(data["x"].astype(float)),
+                  'y': np.array(data["y"].astype(float)),
+                  'z': np.array(data["z"].astype(float)),
+                  'depth': np.zeros(n),
+                  # 0 - junction
+                  # 1 - outfall
+                  'type': np.array(data["type"].str.contains("OUTFALL").astype(int)),
+                  'drain': np.array(data["drain"].astype(int)),
+                  'drainType': np.array(data["drainType"]),
+                  'drainCoupledID': np.array(data["drainCoupledID"].astype(int)),
+                  'drainLength': np.array(data["drainLength"].astype(float)),
+                  'drainWidth': np.array(data["drainWidth"].astype(float)),
+                  })
         # calculate the lengths of each pipe
         for e in self.G.es:
             s = np.array([self.G.vs[e.source]['x'], self.G.vs[e.source]['y'], self.G.vs[e.source]['z']])
@@ -294,14 +222,14 @@ class StreetGraph:
         self.G.es['Q1'] = np.zeros(self.G.ecount())
         self.G.es['Q2'] = np.zeros(self.G.ecount())
         # NOTE: Cant initialize as zero because first update will fail
-        self.G.es['A1'] = np.full(self.G.ecount(),0.0001)
-        self.G.es['A2'] = np.full(self.G.ecount(),0.0001)
+        self.G.es['A1'] = np.full(self.G.ecount(),0)
+        self.G.es['A2'] = np.full(self.G.ecount(),0)
 
         self.G.es['Q1New'] = np.zeros(self.G.ecount())
         self.G.es['Q2New'] = np.zeros(self.G.ecount())
         # NOTE: Cant initialize as zero because first update will fail
-        self.G.es['A1New'] = np.full(self.G.ecount(),0.0001)
-        self.G.es['A2New'] = np.full(self.G.ecount(),0.0001)
+        self.G.es['A1New'] = np.full(self.G.ecount(),0)
+        self.G.es['A2New'] = np.full(self.G.ecount(),0)
         # pprint(self.G.summary())
         
     def update(self, t, dt, runoff, drainOverflows):
@@ -349,7 +277,7 @@ class StreetGraph:
 
             #2. top sort
             order = self.G.topological_sorting()
-            pprint(order)
+            # pprint(order)
 
             for nid in order:
                 #3. Get inflows
@@ -382,12 +310,12 @@ class StreetGraph:
                 else:
                     drainInflow[nid] = capturedFlow(Q1, A1, slope, Sx, drainLength, drainWidth, n)
                     drainOutflow = -1*drainInflow[nid]
-                pprint(f"Drain Outflow for {nid}: {drainOutflow}")
+                # pprint(f"Drain Outflow for {nid}: {drainOutflow}")
                 # get Q2 of incoming edges
                 incomingQs = 0.0
                 for e in self.G.vs[nid].in_edges():
                     incomingQs += e['Q2']
-                pprint(f"Incoming Qs: {incomingQs}")
+                # pprint(f"Incoming Qs: {incomingQs}")
 
                 Q1New = drainOutflow + runoff[nid] + incomingQs
 
@@ -479,8 +407,8 @@ class StreetGraph:
         kineticFlow(t, dt, runoff, drainOverflows)
         # TODO: Add more reporting things here
         averageArea = np.divide(self.G.es['A1'] + self.G.es['A2'],2.0) 
-        pprint(f"Average Area: {averageArea}")
-        pprint(f"New Depth:{self.G.vs['depth']}")
+        # pprint(f"Average Area: {averageArea}")
+        # pprint(f"New Depth:{self.G.vs['depth']}")
         return self.G.vs['depth'], averageArea, drainInflow, peakDischarge             
 
 
@@ -815,7 +743,7 @@ class SewerGraph:
 
             #2. top sort
             order = self.G.topological_sorting()
-            pprint(order)
+            # pprint(order)
 
             for nid in order:
                 #3. Get inflows
@@ -846,12 +774,12 @@ class SewerGraph:
                 # flow water into drain
                 else:
                     drainOutflow = drainInflow[nid]
-                pprint(f"Drain Outflow for {nid}: {drainOutflow}")
+                # pprint(f"Drain Outflow for {nid}: {drainOutflow}")
                 # get Q2 of incoming edges
                 incomingQs = 0.0
                 for e in self.G.vs[nid].in_edges():
                     incomingQs += e['Q2']
-                pprint(f"Incoming Qs: {incomingQs}")
+                # pprint(f"Incoming Qs: {incomingQs}")
 
                 Q1New = drainOutflow + incomingQs
 
@@ -901,14 +829,14 @@ class SewerGraph:
                 # d1New = depthFromAreaStreet(A2New)
                 # d2New = depthFromAreaStreet(A2New)
 
-                pprint(f" A1: {A1}")
-                pprint(f" A2: {A2}")
-                pprint(f" Q1: {Q1}")
-                pprint(f" Q2: {Q2}")
-                pprint(f" A1New: {A1New}")
-                pprint(f" A2New: {A2New}")
-                pprint(f" Q1New: {Q1New}")
-                pprint(f" Q2New: {Q2New}")
+                # pprint(f" A1: {A1}")
+                # pprint(f" A2: {A2}")
+                # pprint(f" Q1: {Q1}")
+                # pprint(f" Q2: {Q2}")
+                # pprint(f" A1New: {A1New}")
+                # pprint(f" A2New: {A2New}")
+                # pprint(f" Q1New: {Q1New}")
+                # pprint(f" Q2New: {Q2New}")
 
                 self.G.es[edge]['Q1New'] = Q1New
                 self.G.es[edge]['A1New'] = A1New
@@ -943,8 +871,8 @@ class SewerGraph:
         kineticFlow(t, dt, drainInflow)
         # TODO: Add more reporting things here
         averageArea = np.divide(self.G.es['A1'] + self.G.es['A2'],2.0) 
-        pprint(f"Average Area: {averageArea}")
-        pprint(f"New Depth:{self.G.vs['depth']}")
+        # pprint(f"Average Area: {averageArea}")
+        # pprint(f"New Depth:{self.G.vs['depth']}")
         return self.G.vs['depth'], averageArea, drainOutflow, peakDischarge
 
 
