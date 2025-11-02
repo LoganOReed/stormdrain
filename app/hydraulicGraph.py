@@ -278,23 +278,6 @@ class HydraulicGraph:
                 self.G.es[eid]["Q2"] = beta*psiFromAreaCircle(self.G.es[eid]["A2"], self.G.es[eid]["yFull"]) + c1 * self.G.es[eid]["A2"] + c2
             pprint(self.G.es[eid]["Q2"])
 
-            for nid in order:
-                maxDepth = 0.0
-                for edge in self.G.vs[nid].out_edges():
-                    tempDepth = depthFromAreaStreet(edge['A1'], A_tbl, self.yFull)
-                    if tempDepth > maxDepth:
-                        maxDepth = tempDepth
-                for edge in self.G.vs[nid].in_edges():
-                    tempDepth = depthFromAreaStreet(edge['A2'], A_tbl, self.yFull)
-                    if tempDepth > maxDepth:
-                        maxDepth = tempDepth
-                if self.G.vs[nid]['depth'] > self.yFull:
-                    pprint(f"WARNING: Node {nid} lost {self.G.vs[nid]['depth'] - self.yFull} due to overflow. Forcing depth to yFull.")
-                    self.G.vs[nid]['depth'] = self.yFull
-                else:
-                    self.G.vs[nid]['depth'] = maxDepth
- 
-
         # return self.G.es[eid]["A1"], self.G.es[eid]["A2"], self.G.es[eid]["Q1"], self.G.es[eid]["Q2"]
         # return self.G.vs['depth'], averageArea, drainInflow, peakDischarge
         averageArea = np.divide(self.G.es['A1'] + self.G.es['A2'],2.0) 

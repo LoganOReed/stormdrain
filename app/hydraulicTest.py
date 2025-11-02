@@ -39,7 +39,7 @@ def exampleHydraulic(file, rainfall, rainfallTimes, dt, createVisuals=True):
     street = HydraulicGraph("STREET", file)
     pprint(street.G.summary())
     # street.update(0,0.5, np.zeros(street.G.vcount()), np.zeros(street.G.vcount()))
-    sewer = SewerGraph(file)
+    sewer = HydraulicGraph("SEWER", file)
 
     # TODO: Have subcatchment coupling happen by passing hydraulicCoupling and runoff to sewer update function
 
@@ -85,7 +85,7 @@ def exampleHydraulic(file, rainfall, rainfallTimes, dt, createVisuals=True):
         drainInflows.append(drainInflow)
 
         # update sewer
-        sewerDepth, sewerEdgeArea, drainOverflow, tempPeakDischarge = sewer.update(ts[n],dt,drainInflow)
+        sewerDepth, sewerEdgeArea, drainOverflow, tempPeakDischarge = sewer.update(ts[n],dt,coupledInputs)
         if peakDischarge < tempPeakDischarge:
             peakDischarge = tempPeakDischarge
         sewerDepths.append(sewerDepth)
