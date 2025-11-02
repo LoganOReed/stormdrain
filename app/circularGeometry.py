@@ -9,6 +9,7 @@ if platform == "linux":
 import matplotlib.pyplot as plt
 
 from .streetGeometry import depthFromAreaStreet, psiFromAreaStreet, psiPrimeFromAreaStreet
+from . import A_tbl, R_tbl, STREET_Y_FULL, STREET_LANE_SLOPE
 
 CIRCLE_N = 51
 
@@ -129,3 +130,4 @@ def plotCircleFunctions(diam):
 if __name__ == "__main__":
     pprint("Don't call this directly. Or, if you want the geometry plots uncomment the code.")
     plotCircleFunctions(5)
+

@@ -25,15 +25,18 @@ if __name__ == "__main__":
     dt = 600
     T = max(rainfallTimes)
     pprint(f"0 to {T}, total steps = {T / dt}")
-    ts = np.linspace(0,T,dt)
+    N = int(T/dt)
+    ts = np.linspace(0,T,N)
+    pprint(f"len(ts): {len(ts)}... int(T/dt): {int(T/dt)}")
     rain = np.interp(ts, rainfallTimes, rainfall)
-    for n in range(int(T/dt)):
-        subcatchmentDepth, runoffUnsorted = g.update(ts[n], dt, rain[n], ts[n])
-        pprint(f"it={n},  {subcatchmentDepth}, {runoffUnsorted}")
+    pprint(f"rain: {rain}")
+    for n in range(len(ts)):
+        subcatchmentDepth, runoffUnsorted = g.update(ts[n], dt, rain[n])
+        pprint(f"it={n},  {ts[n]}, {rain[n]}")
         subcatchment.append(subcatchmentDepth)
         runoff.append(runoffUnsorted)
-    print(f"list of depths at each time:{subcatchment}")
-    print(f"list of runoff at each time:{runoff}")
+    # print(f"list of depths at each time:{subcatchment}")
+    # print(f"list of runoff at each time:{runoff}")
     # print(f"After 2 step: {g.G.vs['depth']}")
     ts = []
     # Create plot for subcatchments 0->1->2

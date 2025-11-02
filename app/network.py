@@ -124,8 +124,9 @@ class SubcatchmentGraph:
         plt.grid(True, alpha=0.3)
         plt.tight_layout()
         if fileName == None:
-            fileName = "test"
+            fileName = "subcatchmentGraph"
         plt.savefig(f"figures/{fileName}.png")
+        plt.show()
 
 
 

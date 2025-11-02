@@ -47,10 +47,14 @@ def example(file, rainfall, rainfallTimes, dt, createVisuals=True):
     # 900 s = 15 min, needs to match rainfall array
     T = max(rainfallTimes)
     pprint(f"0 to {T}, total steps = {T / dt}")
-    ts = np.linspace(0,T,dt)
+    N = int(T/dt)
+    ts = np.linspace(0,T,N)
     rain = np.interp(ts, rainfallTimes, rainfall)
-    for n in range(int(T/dt)):
+    pprint(f"rainfall: {rain}")
+    for n in range(len(ts)):
         subcatchmentDepth, runoffUnsorted = subcatchment.update(ts[n], dt, rain[n])
+        maxRunoff = np.max(runoffUnsorted)
+        pprint(f"Max Runoff: {maxRunoff}")
         subcatchmentDepths.append(subcatchmentDepth)
         # setup runoff
         runoff = np.zeros(street.G.vcount())
@@ -93,6 +97,11 @@ def example(file, rainfall, rainfallTimes, dt, createVisuals=True):
 
     if createVisuals == True:
         visualize(subcatchment, street, street.yFull, sewer, 0.5, subcatchmentDepths, runoffs, streetDepths, streetEdgeAreas, sewerDepths, sewerEdgeAreas, drainOverflows, drainInflows, rainfallTimes, rainfall, peakDischarges, cmap=plt.cm.plasma, fps=20 )
+    subcatchment.visualize(ts,subcatchmentDepths,fileName="subcatchmentGraph")
+    sum = 0
+    for i in range(7):
+        sum += np.trapezoid((np.array(subcatchmentDepths).T)[i,:], ts) * 18*6
+    pprint(f"area under: {sum}")
 
     # pprint(f"Runoffs: {runoffs}")
     # pprint(f"streetDepths: {streetDepths}")
@@ -110,8 +119,9 @@ if __name__ == "__main__":
     # rainfall = np.array([0.10, 0.15, 0.25, 0.40, 0.60, 0.80, 0.70, 0.50, 0.30, 0.20, 0.10, 0.05])
     # rainfall = [0.0,0.5,1.0,0.75,0.5]
     rainfallTimes = [i for i in range(len(rainfall))]
-    rainfall, rainfallTimes = normalizeRainfall(rainfall, rainfallTimes, spaceConversion=0.0254, timeConversion=3600)
+    # rainfall, rainfallTimes = normalizeRainfall(rainfall, rainfallTimes, spaceConversion=0.0254, timeConversion=3600)
+    rainfall, rainfallTimes = normalizeRainfall(rainfall, rainfallTimes, spaceConversion, timeConversion)
 
     file = "largerExample"
-    example(file, rainfall, rainfallTimes, dt, createVisuals=True)
+    example(file, rainfall, rainfallTimes, dt, createVisuals=False)
 
