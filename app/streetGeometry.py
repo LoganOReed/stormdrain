@@ -155,10 +155,15 @@ def areaFromPsiStreet(Psi, A_tbl, R_tbl, Y_full):
     def f(x):
         return psiFromAreaStreet(x, A_tbl, R_tbl, Y_full) - Psi
 
-    sol = sp.optimize.root_scalar(f, method="brentq", bracket=(0.0, A_tbl[-1]), rtol=0.0001*A_tbl[-1])
-    A = sol.root
-    if sol.converged == False:
-        raise ValueError(f"ERROR: Brentq Failed to converge for psi {Psi}")
+    if f(0.0) > 0 and f(A_tbl[-1]) > 0:
+        A = 0.0
+    elif f(0.0) < 0 and f(A_tbl[-1]) < 0:
+        A = A_tbl[-1]
+    else:
+        sol = sp.optimize.root_scalar(f, method="brentq", bracket=(0.0, A_tbl[-1]), rtol=0.0001*A_tbl[-1])
+        A = sol.root
+        if sol.converged == False:
+            raise ValueError(f"ERROR: Brentq Failed to converge for psi {Psi}")
     pprint(f"A = {A} vs Atrue = 0.291169")
     return A
 

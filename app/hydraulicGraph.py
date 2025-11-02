@@ -1,7 +1,7 @@
 import igraph as ig
 import numpy as np
 import matplotlib.pyplot as plt
-import scipy as sc
+import scipy as sp
 import pandas as pd
 import random
 from pprint import pprint
@@ -9,7 +9,7 @@ from .newtonBisection import newtonBisection
 from .drainCapture import capturedFlow
 from .streetGeometry import depthFromAreaStreet, psiFromAreaStreet, psiPrimeFromAreaStreet, areaFromPsiStreet
 from .circularGeometry import depthFromAreaCircle, psiFromAreaCircle, psiPrimeFromAreaCircle, areaFromPsiCircle
-from . import A_tbl, R_tbl, STREET_Y_FULL
+from . import A_tbl, R_tbl, STREET_Y_FULL, STREET_LANE_SLOPE
 
 
 class HydraulicGraph:
@@ -92,16 +92,18 @@ class HydraulicGraph:
                 print(f"{e.source}: ({self.G.vs[e.source]['x']}, {self.G.vs[e.source]['y']}, {self.G.vs[e.source]['z']})")
                 print(f"{e.target}: ({self.G.vs[e.target]['x']}, {self.G.vs[e.target]['y']}, {self.G.vs[e.target]['z']})")
             self.G.es[e.index]['slope'] = slope
+
         # pprint(f"Slopes: {self.G.es['slope']}")
         # pprint(f"Length: {self.G.es['length']}")
         # TODO: add offset height calculations
         # Needs to be given a priori
         self.G.es['offsetHeight'] = [0.0 for _ in range(self.G.ecount())]
         self.G.es['n'] =  np.full(n, 0.013)
+        self.G.es["Sx"] = np.full(n, STREET_LANE_SLOPE)
 
         if self.graphType == "STREET":
             # This is a choice made when creating the street lookup tables
-            self.G.es['yFull'] = [0.3197 for _ in self.G.es]
+            self.G.es['yFull'] = [STREET_Y_FULL for _ in self.G.es]
         else:
             # corresponds to around 18in pipe
             self.G.es['yFull'] = [0.5 for _ in self.G.es]
@@ -135,8 +137,15 @@ class HydraulicGraph:
 
         Returns:
         --------
-        depths : list
-            Updated depths ordered by igraph id
+        A1 : list
+            Updated area ordered by igraph id
+        A2 : list
+            Updated area ordered by igraph id
+        Q1 : list
+            Updated flow ordered by igraph id
+        Q2 : list
+            Updated flow ordered by igraph id
+
 
         """
         # save previous iteration incase its needed
@@ -206,7 +215,9 @@ class HydraulicGraph:
 
             #4. Use #2. and #3. to find Q_1^n+1
             self.G.es[eid]["Q1"] = incomingEdgeFlows + incomingCoupledFlows
-            # pprint()
+            self.G.es[eid]["Q1"] = max(0, self.G.es[eid]["Q1"] + drainCaptureOutgoingFlow)
+
+
             #5. Compute A_1^n+1 using Manning and #4.
             if self.G.es[eid]["Q1"] == 0.0:
                 self.G.es[eid]["A1"] = 0.0
@@ -217,12 +228,79 @@ class HydraulicGraph:
             pprint(self.G.es[eid]["A1"])
 
 
-
-            # TODO: Add drainCaptureOutgoingFlow to C2 term
             #6. Setup nonlinear equation to get A_2^n+1
+            c1 = (self.G.es[eid]["length"]*THETA) / (dt * PHI)
+            c2 = c1 * ( (1 - THETA) *  (self.G.es[eid]["A1"] - self.G.es[eid]["A1Prev"]) - (THETA * self.G.es[eid]["A2Prev"])) + ((1 - PHI) / PHI) * (self.G.es[eid]["Q2Prev"] - self.G.es[eid]["Q1Prev"]) - self.G.es[eid]["Q1"]
+            beta = np.sqrt(self.G.es[eid]["slope"]) / self.G.es[eid]["n"]
+            def A2Func(x):
+                if self.graphType == "STREET":
+                    return beta*psiFromAreaStreet(x, A_tbl, R_tbl, STREET_Y_FULL) + c1 * x + c2
+                else:
+                    return beta*psiFromAreaCircle(x, self.G.es[eid]["yFull"]) + c1 * x + c2
+
 
             #7. Use brent to find the root aka A_2^n+1 instead of having to use derivative of psi
+
+            # This checks for issues with bounding a root
+            Afull = 0.7854 * self.G.es[eid]['yFull'] * self.G.es[eid]['yFull']
+            if self.graphType == "STREET" and A2Func(0.0) > 0 and A2Func(A_tbl[-1]) > 0:
+                self.G.es[eid]["A2"] = 0.0
+            elif self.graphType == "STREET" and A2Func(0.0) < 0 and A2Func(A_tbl[-1]) < 0:
+                self.G.es[eid]["A2"] = A_tbl[-1]
+            elif self.graphType == "SEWER" and A2Func(0.0) > 0 and A2Func(Afull) > 0:
+                self.G.es[eid]["A2"] = 0.0
+            elif self.graphType == "SEWER" and A2Func(0.0) < 0 and A2Func(Afull) < 0:
+                self.G.es[eid]["A2"] = Afull
+            # This is the usual case, without bad arithmetic
+            else:
+                if self.graphType == "STREET":
+                    sol = sp.optimize.root_scalar(A2Func, method="brentq", bracket=(0.0, A_tbl[-1]), rtol=0.001*A_tbl[-1], x0=self.G.es[eid]['A2Prev'])
+                else:
+                    Afull = 0.7854 * self.G.es[eid]['yFull'] * self.G.es[eid]['yFull']
+                    sol = sp.optimize.root_scalar(A2Func, method="brentq", bracket=(0.0, 0.7854 * self.G.es[eid]['yFull'] * self.G.es[eid]['yFull']), rtol=0.001*Afull, x0=self.G.es[eid]['A2Prev'])
+
+                if sol.converged == False:
+                    pprint(f"WARNING: Kinematic Update on {self.graphType} failed to converge at edge {eid}. Setting A2 to 0")
+                    self.G.es[eid]["A2"] = 0.0
+                else:
+                    self.G.es[eid]["A2"] = sol.root
+
+            pprint(f"A2: {self.G.es[eid]["A2"]}")
+                
+
+
             #8. Use Manning and #7. to get Q_2^n+1
+            if self.G.es[eid]["A2"] == 0.0:
+                self.G.es[eid]["Q2"] = 0.0
+            elif self.graphType == "STREET":
+                self.G.es[eid]["Q2"] = beta*psiFromAreaStreet(self.G.es[eid]["A2"], A_tbl, R_tbl, STREET_Y_FULL) + c1 * self.G.es[eid]["A2"] + c2
+            else:
+                self.G.es[eid]["Q2"] = beta*psiFromAreaCircle(self.G.es[eid]["A2"], self.G.es[eid]["yFull"]) + c1 * self.G.es[eid]["A2"] + c2
+            pprint(self.G.es[eid]["Q2"])
+
+            for nid in order:
+                maxDepth = 0.0
+                for edge in self.G.vs[nid].out_edges():
+                    tempDepth = depthFromAreaStreet(edge['A1'], A_tbl, self.yFull)
+                    if tempDepth > maxDepth:
+                        maxDepth = tempDepth
+                for edge in self.G.vs[nid].in_edges():
+                    tempDepth = depthFromAreaStreet(edge['A2'], A_tbl, self.yFull)
+                    if tempDepth > maxDepth:
+                        maxDepth = tempDepth
+                if self.G.vs[nid]['depth'] > self.yFull:
+                    pprint(f"WARNING: Node {nid} lost {self.G.vs[nid]['depth'] - self.yFull} due to overflow. Forcing depth to yFull.")
+                    self.G.vs[nid]['depth'] = self.yFull
+                else:
+                    self.G.vs[nid]['depth'] = maxDepth
+ 
+
+        # return self.G.es[eid]["A1"], self.G.es[eid]["A2"], self.G.es[eid]["Q1"], self.G.es[eid]["Q2"]
+        # return self.G.vs['depth'], averageArea, drainInflow, peakDischarge
+        averageArea = np.divide(self.G.es['A1'] + self.G.es['A2'],2.0) 
+        return self.G.vs['depth'], averageArea, np.zeros(self.G.vcount()), 0.0
+
+
         
 
 
