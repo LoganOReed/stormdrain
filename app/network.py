@@ -8,6 +8,7 @@ from pprint import pprint
 from .newtonBisection import newtonBisection
 from .capturedFlow import capturedFlow
 from .streetGeometry import depthFromAreaStreet, psiFromAreaStreet, psiPrimeFromAreaStreet
+from .circularGeometry import depthFromAreaCircle, psiFromAreaCircle, psiPrimeFromAreaCircle
 from . import A_tbl, R_tbl
 
 
@@ -764,52 +765,6 @@ class SewerGraph:
             # self._steadyFlow(0,[0.1,0.1,0.1,0.1])
         
     
-    def _manning(self, area, hydraulicRadius, n, slope):
-        """ Computes Manning from area, radius, n, slope."""
-        if area <= 0 or hydraulicRadius <= 0 or slope <= 0:
-            return 0.0
-
-        return (1/n)* area * np.power(hydraulicRadius,2/3) * np.power(slope, 0.5)
-
-
-    # TODO: Switch over to lookup tables
-    def _angleFromArea(self, area):
-        """computes the central angle by cross sectional flow area. A = A_{full} (theta - sin theta) / 2 pi"""
-        a = np.divide(area, self.G.es['Amax'])
-        theta = 0.031715 - 12.79384 * a + 8.28479 * np.power(a,0.5)
-        dtheta = 1e15
-        while np.any(np.abs(dtheta) > 0.0001):
-            denom = 1 - np.cos(theta)
-            if np.any(denom == 0):
-                raise ValueError("Division by zero: getAngleFromArea theta is 0")
-            dtheta = 2 * np.pi * a - (theta - np.sin(theta)) / (1 - np.cos(theta))
-            theta += dtheta
-            # pprint(dtheta)
-
-        return theta 
-
-    def _areaFromAngle(self, theta):
-        return np.multiply(self.G.es['Amax'],(theta - np.sin(theta))) / (2*np.pi)
-
-    def _depth(self, theta):
-        depth = 0.5*np.multiply(self.G.es['diam'] , (1 - np.cos(theta / 2)))
-        return depth
-
-    def _sectionFactor(self, theta):
-        return np.multiply(self.G.es['sectionFactorFull'] , np.power(theta - np.sin(theta), 5/3)) / (2*np.pi * np.power(theta,2/3))
-
-    def _wettedPerimeter(self, theta):
-        return 0.5 * np.multiply(theta , self.G.es['diam'])
-
-    def _wettedPerimeterDerivative(self, theta):
-        return np.divide(4, np.multiply(self.G.es['diam'],(1 - np.cos(theta))))
-
-    def _hydraulicRadius(self, theta):
-        return np.divide(self._areaFromAngle(theta), self._wettedPerimeter(theta))
-
-    def _sectionFactorDerivative(self, theta):
-        return ((5/3) - (2/3) * np.multiply(self._wettedPerimeterDerivative(theta) , self._hydraulicRadius(theta)))* np.power(self._hydraulicRadius(theta),2/3)
-
     # TODO: Add "Analytical Functions for Circular Cross Sections"
     def update(self, t, dt, drainInflow):
         """

@@ -127,4 +127,5 @@ def plotCircleFunctions(diam):
 
 
 if __name__ == "__main__":
+    pprint("Don't call this directly. Or, if you want the geometry plots uncomment the code.")
     plotCircleFunctions(5)
