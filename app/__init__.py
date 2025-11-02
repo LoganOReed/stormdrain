@@ -14,5 +14,7 @@ import pandas as pd
 # psiPrimeFromAreaStreet = oc.psi_prime_from_area
 A_tbl = sp.io.loadmat('./octave/A_tbl51.mat')['A_tbl51'][0]
 R_tbl = sp.io.loadmat('./octave/R_tbl51.mat')['R_tbl51'][0]
+STREET_Y_FULL = 0.3197
+STREET_LANE_SLOPE = 0.02
 
 circleTable = pd.read_csv('./data/circleTableFromArea.csv')

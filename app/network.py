@@ -9,7 +9,7 @@ from .newtonBisection import newtonBisection
 from .drainCapture import capturedFlow
 from .streetGeometry import depthFromAreaStreet, psiFromAreaStreet, psiPrimeFromAreaStreet
 from .circularGeometry import depthFromAreaCircle, psiFromAreaCircle, psiPrimeFromAreaCircle
-from . import A_tbl, R_tbl
+from . import A_tbl, R_tbl, STREET_Y_FULL
 
 
 # TODO: create the lookup tables from appendix C in ch. 2 instead of computing directly
@@ -193,7 +193,7 @@ class StreetGraph:
         self.depthFromArea = depthFromAreaStreet
         self.psiFromArea = psiFromAreaStreet
         self.psiPrimeFromArea = psiPrimeFromAreaStreet
-        self.yFull = 0.3197 # diff between lowest and highest point from choice of Street Parameters
+        self.yFull = STREET_Y_FULL # diff between lowest and highest point from choice of Street Parameters
         if file == None:
             self.G = ig.Graph(n=5,edges=[(0,1),(2,3),(3,1),(1,4)],directed=True,
                               vertex_attrs={
