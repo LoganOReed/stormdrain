@@ -96,12 +96,8 @@ def example(file, rainfall, rainfallTimes, dt, createVisuals=True):
     # TODO: Actually store these 
 
     if createVisuals == True:
-        visualize(subcatchment, street, street.yFull, sewer, 0.5, subcatchmentDepths, runoffs, streetDepths, streetEdgeAreas, sewerDepths, sewerEdgeAreas, drainOverflows, drainInflows, rainfallTimes, rainfall, peakDischarges, cmap=plt.cm.plasma, fps=20 )
+        visualize(subcatchment, street, street.yFull, sewer, 0.5, subcatchmentDepths, runoffs, streetDepths, streetEdgeAreas, sewerDepths, sewerEdgeAreas, drainOverflows, drainInflows, rainfallTimes, rainfall, peakDischarges, cmap=plt.cm.plasma, fps=5 )
     subcatchment.visualize(ts,subcatchmentDepths,fileName="subcatchmentGraph")
-    sum = 0
-    for i in range(7):
-        sum += np.trapezoid((np.array(subcatchmentDepths).T)[i,:], ts) * 18*6
-    pprint(f"area under: {sum}")
 
     # pprint(f"Runoffs: {runoffs}")
     # pprint(f"streetDepths: {streetDepths}")
@@ -114,14 +110,14 @@ def example(file, rainfall, rainfallTimes, dt, createVisuals=True):
 if __name__ == "__main__":
     spaceConversion=0.0254
     timeConversion=3600
-    dt = 600
-    rainfall = np.array([0.10, 0.15, 0.25, 0.40, 0.60, 0.80, 0.70, 0.50, 0.30, 0.20, 0.10, 0.05, 0.0,0.0,0.0,0.0,0.0,0.0])
+    dt = 1800
+    rainfall = np.array([0.10, 0.15, 0.25, 0.40, 0.60, 0.80, 0.70, 0.50, 0.30, 0.20, 0.10, 0.05, 0.0,0.0,0.0,0.0,0.0,0.0, 0.0,0.0,0.0,0.0,0.0,0.0, 0.0,0.0,0.0,0.0,0.0,0.0])
     # rainfall = np.array([0.10, 0.15, 0.25, 0.40, 0.60, 0.80, 0.70, 0.50, 0.30, 0.20, 0.10, 0.05])
     # rainfall = [0.0,0.5,1.0,0.75,0.5]
     rainfallTimes = [i for i in range(len(rainfall))]
     # rainfall, rainfallTimes = normalizeRainfall(rainfall, rainfallTimes, spaceConversion=0.0254, timeConversion=3600)
     rainfall, rainfallTimes = normalizeRainfall(rainfall, rainfallTimes, spaceConversion, timeConversion)
 
-    file = "largerExample"
-    example(file, rainfall, rainfallTimes, dt, createVisuals=False)
+    file = "doubled_largerExample"
+    example(file, rainfall, rainfallTimes, dt, createVisuals=True)
 
