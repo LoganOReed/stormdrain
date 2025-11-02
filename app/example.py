@@ -54,7 +54,7 @@ def example(file, rainfall, rainfallTimes, dt, createVisuals=True):
     for n in range(len(ts)):
         subcatchmentDepth, runoffUnsorted = subcatchment.update(ts[n], dt, rain[n])
         maxRunoff = np.max(runoffUnsorted)
-        pprint(f"Max Runoff: {maxRunoff}")
+        # pprint(f"Max Runoff: {maxRunoff}")
         subcatchmentDepths.append(subcatchmentDepth)
         # setup runoff
         runoff = np.zeros(street.G.vcount())
@@ -73,7 +73,7 @@ def example(file, rainfall, rainfallTimes, dt, createVisuals=True):
 
         streetDepth, streetEdgeArea, drainInflow, tempPeakDischarge = street.update(ts[n],dt,runoff,drainOverflow)
         if peakDischarge < tempPeakDischarge:
-            pprint(f"The largest is from street: {peakDischarge} < {tempPeakDischarge}")
+            # pprint(f"The largest is from street: {peakDischarge} < {tempPeakDischarge}")
             peakDischarge = tempPeakDischarge
         streetDepths.append(streetDepth)
         streetEdgeAreas.append(streetEdgeArea)

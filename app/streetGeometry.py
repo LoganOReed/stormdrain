@@ -164,7 +164,6 @@ def areaFromPsiStreet(Psi, A_tbl, R_tbl, Y_full):
         A = sol.root
         if sol.converged == False:
             raise ValueError(f"ERROR: Brentq Failed to converge for psi {Psi}")
-    pprint(f"A = {A} vs Atrue = 0.291169")
     return A
 
 

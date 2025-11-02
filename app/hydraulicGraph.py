@@ -31,11 +31,6 @@ class HydraulicGraph:
         data = pd.read_csv(f"data/{file}.csv")
         data = data[data["type"].str.contains(graphType)]
         n = data.shape[0]
-        # pprint(n)
-        # pprint(data["type"])
-        # pprint(data["x"].astype(float))
-        # pprint(data)
-        # pprint(data["type"].str.contains("OUTFALL").astype(int))
 
         # Needed to create edges
         edges = []
@@ -165,22 +160,30 @@ class HydraulicGraph:
 
         for nid in order:
             # NOTE: This should only be outfall nodes, so it would be a good place to track discharge
+
             if self.G.vs[nid].outdegree() != 0:
                 eid = self.G.vs[nid].incident(mode="out")[0].index
-            pprint(f"eid: {eid}")
+            # pprint(f"eid: {eid}")
             #2. get Q_2^n+1 of prev nodes
             if self.G.vs[nid].indegree() != 0:
                 iedges = [a.index for a in self.G.vs[nid].predecessors()]
             else:
                 iedges = []
-            pprint(f"indegree of {nid}: {self.G.vs[nid].indegree()} and incident to: {iedges}")
-            pprint(f"Node: {nid} edges: {iedges}")
+            # pprint(f"indegree of {nid}: {self.G.vs[nid].indegree()} and incident to: {iedges}")
+            # pprint(f"Node: {nid} edges: {iedges}")
 
             # get incoming edges Q2^n+1 
             incomingEdgeFlows = [self.G.get_eid(i, nid) for i in iedges]
             # NOTE: Because of the topological sorting these will be Q2^n+1
             incomingEdgeFlows = np.sum(self.G.es[incomingEdgeFlows]["Q2"])
-            pprint(f"incomingEdgeFlows: {incomingEdgeFlows}")
+            # pprint(f"incomingEdgeFlows: {incomingEdgeFlows}")
+
+            # If this loop is the outfall node, keepthis as the peak discharge
+            peakDischarge = 0.0
+            if self.G.vs[nid].outdegree() == 0:
+                peakDischarge = incomingEdgeFlows
+                pprint(f"Peak Discharge for {self.graphType} is {peakDischarge}")
+
             
 
             #3. get any coupled inputs for the node (which are computed elsewhere)
@@ -217,15 +220,15 @@ class HydraulicGraph:
             self.G.es[eid]["Q1"] = incomingEdgeFlows + incomingCoupledFlows
             self.G.es[eid]["Q1"] = max(0, self.G.es[eid]["Q1"] + drainCaptureOutgoingFlow)
 
-
+            
             #5. Compute A_1^n+1 using Manning and #4.
             if self.G.es[eid]["Q1"] == 0.0:
                 self.G.es[eid]["A1"] = 0.0
-            elif self.graphType == "SEWER":
-                self.G.es[eid]["A1"] = areaFromPsiCircle(self.G.es[eid]["Q1"], self.G.es[eid]["yFull"])
-            else:
+            elif self.graphType == "STREET":
                 self.G.es[eid]["A1"] = areaFromPsiStreet(self.G.es[eid]["Q1"], A_tbl, R_tbl, self.G.es[eid]["yFull"])
-            pprint(self.G.es[eid]["A1"])
+            else:
+                self.G.es[eid]["A1"] = areaFromPsiCircle(self.G.es[eid]["Q1"], self.G.es[eid]["yFull"])
+            # pprint(self.G.es[eid]["A1"])
 
 
             #6. Setup nonlinear equation to get A_2^n+1
@@ -265,7 +268,7 @@ class HydraulicGraph:
                 else:
                     self.G.es[eid]["A2"] = sol.root
 
-            pprint(f"A2: {self.G.es[eid]["A2"]}")
+            # pprint(f"A2: {self.G.es[eid]["A2"]}")
                 
 
 
@@ -276,12 +279,35 @@ class HydraulicGraph:
                 self.G.es[eid]["Q2"] = beta*psiFromAreaStreet(self.G.es[eid]["A2"], A_tbl, R_tbl, STREET_Y_FULL) + c1 * self.G.es[eid]["A2"] + c2
             else:
                 self.G.es[eid]["Q2"] = beta*psiFromAreaCircle(self.G.es[eid]["A2"], self.G.es[eid]["yFull"]) + c1 * self.G.es[eid]["A2"] + c2
-            pprint(self.G.es[eid]["Q2"])
+            # pprint(self.G.es[eid]["Q2"])
+
+            for nid in order:
+                maxDepth = 0.0
+                for edge in self.G.vs[nid].out_edges():
+                    if self.graphType == "STREET":
+                        tempDepth = depthFromAreaStreet(edge['A1'], A_tbl, self.G.es[edge.index]["yFull"])
+                    else:
+                        tempDepth = depthFromAreaCircle(edge['A1'], self.G.es[edge.index]["yFull"])
+                    if tempDepth > maxDepth:
+                        maxDepth = tempDepth
+                for edge in self.G.vs[nid].in_edges():
+                    if self.graphType == "STREET":
+                        tempDepth = depthFromAreaStreet(edge['A2'], A_tbl, self.G.es[edge.index]["yFull"])
+                    else:
+                        tempDepth = depthFromAreaCircle(edge['A2'], self.G.es[edge.index]["yFull"])
+                    if tempDepth > maxDepth:
+                        maxDepth = tempDepth
+                if self.G.vs[nid]['depth'] > self.G.es[edge.index]["yFull"]:
+                    pprint(f"WARNING: Node {nid} lost {self.G.vs[nid]['depth'] - self.G.es[edge.index]["yFull"]} due to overflow. Forcing depth to yFull.")
+                    self.G.vs[nid]['depth'] = self.G.es[edge.index]["yFull"]
+                else:
+                    self.G.vs[nid]['depth'] = maxDepth
+ 
 
         # return self.G.es[eid]["A1"], self.G.es[eid]["A2"], self.G.es[eid]["Q1"], self.G.es[eid]["Q2"]
         # return self.G.vs['depth'], averageArea, drainInflow, peakDischarge
         averageArea = np.divide(self.G.es['A1'] + self.G.es['A2'],2.0) 
-        return self.G.vs['depth'], averageArea, np.zeros(self.G.vcount()), 0.0
+        return self.G.vs['depth'], averageArea, coupledInputs, peakDischarge
 
 
         

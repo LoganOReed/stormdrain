@@ -94,7 +94,6 @@ def hydraulicRadiusFromAreaCircle(A, Yfull):
         r = A / (theta * Yfull * 0.5)
     else:
         rTable = np.power(circleTable["P"] / circleTable["A"], 1.5)
-        pprint(rTable)
         r = np.interp(Aratio, circleTable["A"], rTable) * Rfull
     return r
     
