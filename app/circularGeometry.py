@@ -7,6 +7,7 @@ import matplotlib
 if platform == "linux":
     matplotlib.use('module://matplotlib-backend-kitty')
 import matplotlib.pyplot as plt
+import bisect
 
 from . import A_tbl, R_tbl, STREET_Y_FULL, STREET_LANE_SLOPE
 
@@ -47,6 +48,18 @@ def psiFromAreaCircle(A, Yfull):
     else:
         psi = np.interp(Aratio, circleTable["A"], circleTable["P"]) * PsiFull
     return psi
+
+
+def areaFromPsiCircle(Psi, Yfull):
+    """Reverse search for area from psi."""
+    Afull = 0.7854 * Yfull * Yfull
+    Rfull = 0.25 * Yfull
+    PsiFull = Afull * np.power(Rfull,2/3)
+    A = np.interp(Psi / PsiFull, circleTable["P"], circleTable["A"]) * Afull
+    return A
+    
+
+
 
 def psiPrimeFromAreaCircle(A, Yfull):
     """Section Factor (Psi = A * R(A)^2/3) from cross sectional area."""

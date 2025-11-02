@@ -50,9 +50,12 @@ dPsi = psi_prime_from_area(A_target, A_tbl51, R_tbl51, Y_full);
 
 
 fprintf('Full A = %.6f m\n',A_full);
+fprintf('Full Y = %.6f m\n',Y_full);
 
 fprintf('Depth at A = %.6g (%.0f%% of A_full )  is,  Y = %.6f m\n', ...
         A_target, 100*A_target/A_full, Y);
+
+
 
 fprintf('Hydraulic radius at Y = %.6f m is, R  = %.6f m\n',Y, R);
 
