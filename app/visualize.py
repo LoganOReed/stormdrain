@@ -82,6 +82,9 @@ def createFrame(subcatchment, street, streetYFull, sewer, sewerYFull, subcatchme
     # norm = plt.Normalize(vmin=0,vmax=max(streetYFull,sewerYFull))
 
     # edge_colors = [cmap(norm(w)) for w in weights]
+    # NOTE: This is very hacky but I dont want to chase down the bug
+    if it >= len(subcatchmentDepths):
+        it = it - 1
     subcatchmentNodesColors = [cmap(norm(w)) for w in subcatchmentDepths[it]]
     runoffsColors = [cmap(normRunoff(w)) for w in runoffs[it]]
     streetNodesColors = [cmap(norm(w)) for w in streetDepths[it]]

@@ -1,4 +1,14 @@
 import numpy as np
+import scipy as sp
+from . import circleTable
+from pprint import pprint
+from sys import platform
+import matplotlib
+if platform == "linux":
+    matplotlib.use('module://matplotlib-backend-kitty')
+import matplotlib.pyplot as plt
+
+from . import A_tbl, R_tbl, STREET_Y_FULL, STREET_LANE_SLOPE
 
 def depthFromAreaStreet(A, A_tbl, Y_full):
     """
@@ -137,7 +147,7 @@ def psiFromAreaStreet(A, A_tbl, R_tbl, Y_full):
     # Section factor
     Psi = A * (RY)**(2/3)
     
-    return max(Psi,1e-8)
+    return max(Psi,1e-10)
 
 def psiPrimeFromAreaStreet(A, A_tbl, R_tbl, Y_full):
     """
@@ -187,3 +197,50 @@ def psiPrimeFromAreaStreet(A, A_tbl, R_tbl, Y_full):
     dPsi = (Psi_p - Psi_m) / (2 * dA)
     
     return dPsi
+
+
+def plotStreetFunctions(diam):
+    "Creates plots to show Geometric Functions in terms of cross sectional area."
+    Afull = A_tbl[-1]
+    res = 1000 # plot resolution
+    As = np.linspace(0,1,res)
+    Ys = [depthFromAreaStreet(a*Afull, A_tbl, diam) / diam for a in As]
+
+    # Get PsiFull
+    
+    Rfull = 0.25 * diam
+    PsiFull = Afull * np.power(Rfull,2/3)
+    # TODO: Change or remove this 
+    PsiPrimeFull = 1
+
+    Psis = [psiFromAreaStreet(a*Afull, A_tbl, R_tbl, diam) for a in As]
+    PsiFull = max(Psis)
+    Psis = np.array(Psis) / PsiFull
+    # Here incase they ask about hydraulicRadius
+    Hs = [R_of_Y(a*Afull, R_tbl, depthFromAreaStreet(a*Afull, A_tbl, diam)) / R_tbl[-1] for a in As]
+    PsiPrimes = [psiPrimeFromAreaStreet(a*Afull, A_tbl, R_tbl, diam) / PsiPrimeFull for a in As]
+
+
+
+    plt.plot(As,Ys, label="d / d_full", color="blue")
+    plt.plot(As,Psis, label="Psi / Psi_full", color="red")
+    # plt.plot(As,Hs, label="H / H_full", color="purple")
+    # plt.plot(As,PsiPrimes, label="Psi' / Psi'_full", color="purple")
+    plt.legend()
+    plt.grid(True)
+    plt.xlabel("A/A_full")
+    # plt.ylabel("Y/Yfull")
+    plt.title("Street Geometry from Cross Sectional Area")
+
+    plt.savefig(f"figures/streetGeometry.png")
+    plt.show()
+
+    
+
+    
+
+
+if __name__ == "__main__":
+    pprint("Don't call this directly. Or, if you want the geometry plots uncomment the code.")
+    plotStreetFunctions(A_tbl[-1])
+

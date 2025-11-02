@@ -8,7 +8,6 @@ if platform == "linux":
     matplotlib.use('module://matplotlib-backend-kitty')
 import matplotlib.pyplot as plt
 
-from .streetGeometry import depthFromAreaStreet, psiFromAreaStreet, psiPrimeFromAreaStreet
 from . import A_tbl, R_tbl, STREET_Y_FULL, STREET_LANE_SLOPE
 
 CIRCLE_N = 51
