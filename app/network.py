@@ -9,7 +9,7 @@ from .newtonBisection import newtonBisection
 from .drainCapture import capturedFlow
 from .streetGeometry import depthFromAreaStreet, psiFromAreaStreet, psiPrimeFromAreaStreet
 from .circularGeometry import depthFromAreaCircle, psiFromAreaCircle, psiPrimeFromAreaCircle
-from . import A_tbl, R_tbl, STREET_Y_FULL
+from . import A_tbl, R_tbl, STREET_Y_FULL, STREET_LANE_SLOPE
 
 
 # TODO: create the lookup tables from appendix C in ch. 2 instead of computing directly
@@ -279,6 +279,7 @@ class StreetGraph:
         # Needs to be given a priori
         self.G.es['offsetHeight'] = [0.0 for _ in range(self.G.ecount())]
         self.G.es['n'] =  np.full(n, 0.013)
+        self.G.es["Sx"] = np.full(n, STREET_LANE_SLOPE)
 
 
         # Geometry of Pipes (Circular in this case)
@@ -365,6 +366,8 @@ class StreetGraph:
                 Q2New = 0.0
                 A2New = 0.0
                 slope = self.G.es[edge]['slope']
+                Sx = self.G.es[edge]['Sx']
+                n = self.G.es[edge]['n']
                 drainLength = self.G.vs[nid]['drainLength']
                 drainWidth = self.G.vs[nid]['drainWidth']
                 beta = np.power(slope,0.5) / self.G.es[edge]['n']
@@ -377,7 +380,7 @@ class StreetGraph:
                     drainOutflow = drainOverflows[nid]
                 # flow water into drain
                 else:
-                    drainInflow[nid] = capturedFlow(Q1, A1, slope, drainLength, drainWidth)
+                    drainInflow[nid] = capturedFlow(Q1, A1, slope, Sx, drainLength, drainWidth, n)
                     drainOutflow = -1*drainInflow[nid]
                 pprint(f"Drain Outflow for {nid}: {drainOutflow}")
                 # get Q2 of incoming edges
