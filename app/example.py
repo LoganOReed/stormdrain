@@ -119,7 +119,7 @@ if __name__ == "__main__":
     # rainfall, rainfallTimes = normalizeRainfall(rainfall, rainfallTimes, spaceConversion=0.0254, timeConversion=3600)
     rainfall, rainfallTimes = normalizeRainfall(rainfall, rainfallTimes, spaceConversion, timeConversion)
 
-    file = "doubled_largerExample"
+    file = "largerExample"
     # file = "largerExample"
     example(file, rainfall, rainfallTimes, dt, createVisuals=True)
 

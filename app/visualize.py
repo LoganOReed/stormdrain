@@ -180,14 +180,30 @@ def createFrame(subcatchment, street, streetYFull, sewer, sewerYFull, subcatchme
     # Plot cumulative rainfall
 
     # TODO: Clean this up.
-    mPerHrainfall = [r * 3600 for r in rainfall] 
-    pprint(f"mperhrainfall: {mPerHrainfall}")
-    cumulative_rainfall = np.cumsum(mPerHrainfall[:it+1])
-    pprint(f"cumsum: {cumulative_rainfall}")
-    time_hours = times[:it+1]
+    # mPerHrainfall = [r * 3600 for r in rainfall] 
+    # pprint(f"mperhrainfall: {mPerHrainfall}")
+    # cumulative_rainfall = np.cumsum(mPerHrainfall[:it+1])
+    # pprint(f"cumsum: {cumulative_rainfall}")
+    # time_hours = times[:it+1]
 
     # TODO: fix this plot scaling
-    # interpolate the cumulative rainfall graph
+    #1 generate cumsum array
+    #2 create updated time list
+    #3 interpolate the cumulative rainfall graph for totalIts points
+    #4 chop this to match current iteration
+    totalIts = len(runoffs)
+    # TODO: Make this scaling dependent on normalizeRainfall
+    mPerHrainfall = [r * 3600 for r in rainfall] 
+    cumulative_rainfall = np.cumsum(mPerHrainfall)
+    # scaledTimes = [t * (dt/3600) for t in times]
+    fixedTimes = np.linspace(0,times[-1],totalIts)
+    fixedCumulativeRainfall = np.interp(fixedTimes,times,cumulative_rainfall)
+    # Reformat to just be upto iteration
+    cumulative_rainfall = fixedCumulativeRainfall[:it+1]
+    time_hours = fixedTimes[:it+1]
+
+    
+
 
     ax[0,1].clear()
     ax[0,1].plot(time_hours, cumulative_rainfall, 
@@ -203,8 +219,8 @@ def createFrame(subcatchment, street, streetYFull, sewer, sewerYFull, subcatchme
 
 
     # Plot Peak Discharges
-    time_hours = times[:it+1]
-    time_hours = [t * (dt/3600) for t in time_hours]
+    time_hours = fixedTimes[:it+1]
+    # time_hours = [t * (dt/3600) for t in time_hours]
     current_peak_discharges = peakDischarges[:it+1]
 
     ax[1,1].clear()
