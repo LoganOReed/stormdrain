@@ -21,12 +21,25 @@ def seconds_to_hms(x, pos):
     return f"{hours:02d}:{minutes:02d}"
 
 # https://stackoverflow.com/questions/76752021/producing-a-gif-of-plot-over-time-python
-def visualize( subcatchment, street, streetYFull, sewer, sewerYFull, subcatchmentDepths, runoffs, streetDepths, streetEdgeAreas, sewerDepths, sewerEdgeAreas, drainOverflows, drainInflows, times, rainfall, peakDischarges, file="visualizeExample", cmap=plt.cm.plasma, fps=5):
+def visualize( subcatchment, street, streetYFull, sewer, sewerYFull, subcatchmentDepths, runoffs, streetDepths, streetEdgeAreas, sewerDepths, sewerEdgeAreas, drainOverflows, drainInflows, times, rainfall, peakDischarges, dt, file="visualizeExample", cmap=plt.cm.plasma, fps=5):
     """Creates a gif from igraph, t0, T, stepsize. weights are a function of time"""
 
     frames = []
-    for it in range(len(times)):
-        fig = createFrame(subcatchment, street, streetYFull, sewer, sewerYFull, subcatchmentDepths, runoffs, streetDepths, streetEdgeAreas, sewerDepths, sewerEdgeAreas, drainOverflows, drainInflows, it, times, rainfall, peakDischarges, cmap=cmap)
+    pprint(f"times length: {len(times)} and times: {times}")
+    pprint(f"runoffs length: {len(runoffs)} and times: {len(runoffs)}")
+    pprint(f"subcatchment length: {len(subcatchmentDepths)} and times: {len(subcatchmentDepths)}")
+    if len(runoffs) != len(subcatchmentDepths) or len(subcatchmentDepths) != len(streetDepths) or len(streetDepths) != len(sewerDepths) or len(sewerDepths) != len(peakDischarges):
+        pprint(f"Error: one of the calculated datas are the wrong size!")
+
+    # NOTE: I use runoffs arbitrarily, all of the measurable data should be the same size, otherwise the previous error will be thrown.
+    numIters = len(runoffs)
+    # resizedTimes = np.linspace(0,max(times),numIters)
+    # rainfall = np.interp(resizedTimes, times, rainfall)
+    # times = resizedTimes
+    pprint(f"times length: {len(times)} and times: {times}")
+    pprint(f"rainfall length: {len(rainfall)} and rainfall: {rainfall}")
+    for it in range(len(runoffs)):
+        fig = createFrame(subcatchment, street, streetYFull, sewer, sewerYFull, subcatchmentDepths, runoffs, streetDepths, streetEdgeAreas, sewerDepths, sewerEdgeAreas, drainOverflows, drainInflows, it, times, rainfall, peakDischarges, dt, cmap=cmap)
         fig.canvas.draw()
         frames.append(np.array(fig.canvas.renderer._renderer))
         # Save GIF
@@ -35,7 +48,7 @@ def visualize( subcatchment, street, streetYFull, sewer, sewerYFull, subcatchmen
                         fps=fps)
         
 
-def createFrame(subcatchment, street, streetYFull, sewer, sewerYFull, subcatchmentDepths, runoffs, streetDepths, streetEdgeAreas, sewerDepths, sewerEdgeAreas, drainOverflows, drainInflows, it, times, rainfall, peakDischarges, cmap=plt.cm.plasma):
+def createFrame(subcatchment, street, streetYFull, sewer, sewerYFull, subcatchmentDepths, runoffs, streetDepths, streetEdgeAreas, sewerDepths, sewerEdgeAreas, drainOverflows, drainInflows, it, times, rainfall, peakDischarges, dt, cmap=plt.cm.plasma):
     """Creates t-th frame of graph g and returns figure."""
     # Convert to networkx for visualizing
     aSubcatchments = np.array(subcatchment.G.get_adjacency())
@@ -165,8 +178,16 @@ def createFrame(subcatchment, street, streetYFull, sewer, sewerYFull, subcatchme
 
 
     # Plot cumulative rainfall
-    cumulative_rainfall = np.cumsum(rainfall[:it+1])
+
+    # TODO: Clean this up.
+    mPerHrainfall = [r * 3600 for r in rainfall] 
+    pprint(f"mperhrainfall: {mPerHrainfall}")
+    cumulative_rainfall = np.cumsum(mPerHrainfall[:it+1])
+    pprint(f"cumsum: {cumulative_rainfall}")
     time_hours = times[:it+1]
+
+    # TODO: fix this plot scaling
+    # interpolate the cumulative rainfall graph
 
     ax[0,1].clear()
     ax[0,1].plot(time_hours, cumulative_rainfall, 
@@ -178,11 +199,12 @@ def createFrame(subcatchment, street, streetYFull, sewer, sewerYFull, subcatchme
 
     # Set fixed axis limits so the plot doesn't rescale every frame
     ax[0,1].set_xlim(times[0], times[-1])
-    ax[0,1].set_ylim(0, np.sum(rainfall) * 1.1)
+    ax[0,1].set_ylim(0, np.sum(mPerHrainfall) * 1.1)
 
 
     # Plot Peak Discharges
     time_hours = times[:it+1]
+    time_hours = [t * (dt/3600) for t in time_hours]
     current_peak_discharges = peakDischarges[:it+1]
 
     ax[1,1].clear()
