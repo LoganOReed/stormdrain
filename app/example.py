@@ -96,8 +96,14 @@ def example(file, rainfall, rainfallTimes, dt, createVisuals=True):
     # TODO: Actually store these 
 
     if createVisuals == True:
-        visualize(subcatchment, street, street.yFull, sewer, 0.5, subcatchmentDepths, runoffs, streetDepths, streetEdgeAreas, sewerDepths, sewerEdgeAreas, drainOverflows, drainInflows, rainfallTimes, rainfall, peakDischarges, dt, cmap=plt.cm.plasma, fps=5 )
-    subcatchment.visualize(ts,subcatchmentDepths,fileName="subcatchmentGraph")
+        if file=="largerExample":
+            name = "SingleJunction"
+        elif file=="doubled_largerExample":
+            name = "DoubleJunction"
+        else:
+            name="ADDNAMETOCREATEVISUALSCONDITIONAL"
+        visualize(subcatchment, street, street.yFull, sewer, 0.5, subcatchmentDepths, runoffs, streetDepths, streetEdgeAreas, sewerDepths, sewerEdgeAreas, drainOverflows, drainInflows, rainfallTimes, rainfall, peakDischarges, dt, file=f"{name}{dt}dt", cmap=plt.cm.plasma, fps=5 )
+        # subcatchment.visualize(ts,subcatchmentDepths,fileName="subcatchmentGraph")
 
     # pprint(f"Runoffs: {runoffs}")
     # pprint(f"streetDepths: {streetDepths}")
@@ -110,8 +116,8 @@ def example(file, rainfall, rainfallTimes, dt, createVisuals=True):
 if __name__ == "__main__":
     spaceConversion=0.0254
     timeConversion=3600
-    dt = 1800
-    rainfall = np.array([0.10, 0.15, 0.25, 0.40, 0.60, 0.80, 0.70, 0.50, 0.30, 0.20, 0.10, 0.05, 0.0,0.0,0.0,0.0,0.0,0.0, 0.0,0.0,0.0,0.0,0.0,0.0, 0.0,0.0,0.0,0.0,0.0,0.0])
+    # dt = 1800
+    rainfall = np.array([0.10, 0.15, 0.25, 0.40, 0.60, 0.80, 0.70, 0.50, 0.30, 0.20, 0.10, 0.05, 0.0,0.0,0.0,0.0])
     pprint(f"sum of rainfall: {np.sum(rainfall)}")
     # rainfall = np.array([0.10, 0.15, 0.25, 0.40, 0.60, 0.80, 0.70, 0.50, 0.30, 0.20, 0.10, 0.05])
     # rainfall = [0.0,0.5,1.0,0.75,0.5]
@@ -120,6 +126,8 @@ if __name__ == "__main__":
     rainfall, rainfallTimes = normalizeRainfall(rainfall, rainfallTimes, spaceConversion, timeConversion)
 
     file = "largerExample"
+    doubleFile = "doubled_largerExample"
     # file = "largerExample"
-    example(file, rainfall, rainfallTimes, dt, createVisuals=True)
-
+    for dt in [300,900,1800,3600]:
+        example(file, rainfall, rainfallTimes, dt, createVisuals=True)
+        example(doubleFile, rainfall, rainfallTimes, dt, createVisuals=True)

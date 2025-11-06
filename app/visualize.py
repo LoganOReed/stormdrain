@@ -207,8 +207,8 @@ def createFrame(subcatchment, street, streetYFull, sewer, sewerYFull, subcatchme
 
     ax[0,1].clear()
     ax[0,1].plot(time_hours, cumulative_rainfall, 
-                 marker='o', linewidth=2, markersize=6, color='steelblue')
-    ax[0,1].set_xlabel('Time ', fontsize=10)
+                 marker='', linewidth=2, markersize=6, color='steelblue')
+    ax[0,1].set_xlabel('Time (hr:min)', fontsize=10)
     ax[0,1].set_ylabel('Cumulative Rainfall (meters)', fontsize=10)
     ax[0,1].set_title('Cumulative Rainfall Over Time', fontsize=12, fontweight='bold')
     ax[0,1].grid(True, alpha=0.3)
@@ -225,8 +225,8 @@ def createFrame(subcatchment, street, streetYFull, sewer, sewerYFull, subcatchme
 
     ax[1,1].clear()
     ax[1,1].plot(time_hours, current_peak_discharges, 
-                 marker='o', linewidth=2, markersize=6, color='crimson')
-    ax[1,1].set_xlabel('Time ', fontsize=10)
+                 marker='', linewidth=2, markersize=6, color='crimson')
+    ax[1,1].set_xlabel('Time (hr:min)', fontsize=10)
     ax[1,1].set_ylabel('Peak Discharge (m^3/s)', fontsize=10)
     ax[1,1].set_title('Peak Discharge Over Time', fontsize=12, fontweight='bold')
     ax[1,1].grid(True, alpha=0.3)
