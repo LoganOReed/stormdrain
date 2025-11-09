@@ -1,4 +1,4 @@
-id,type,x,y,z,slope,outgoing,drain,drainCoupledID,drainType,drainLength,drainWidth,n_Manning
+id,type,x,y,z,slope,outgoing,drain,drainCoupledID,drainType,drainLength,drainWidth, n_Manning
 1,OUTFALLSTREET,-100,0,0.8,0,-1,0,-1,P-50x100,0.818,0.415,0.013
 2,OUTFALLSEWER,-100,0,-0.6,0,-1,0,-1,P-50x100,0.818,0.415,0.013
 3,STREET,0,0,1.05,0,1,1,18,P-50x100,0.818,0.415,0.013
@@ -37,4 +37,6 @@ id,type,x,y,z,slope,outgoing,drain,drainCoupledID,drainType,drainLength,drainWid
 36,SUBCATCHMENT,250,200,1.855,0.0247,14,0,-1,P-50x100,0.818,0.415,0.013
 37,SUBCATCHMENT,350,200,1.97,0.0274,17,0,-1,P-50x100,0.818,0.415,0.013
 38,SUBCATCHMENT,50,120,1.4,0.016,7,0,-1,P-50x100,0.818,0.415,0.013
+
 39,SUBCATCHMENT,250,40,1.5,0.013,12,0,-1,P-50x100,0.818,0.415,0.013
+
