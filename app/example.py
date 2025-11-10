@@ -66,12 +66,15 @@ def example(file, rainfall, rainfallTimes, dt, createVisuals=True):
             i += 1
         # pprint(f"runoff unsorted: {runoffUnsorted}")
         # pprint(f"runoff: {runoff}")
-        peakDischarge = np.max(np.abs(runoff))
+        # pprint(f"runoff: {runoff}")
+        # peakDischarge = np.max(np.abs(runoff))
+        peakDischarge = 0
         runoffs.append(runoff)
 
         drainOverflow = np.zeros(street.G.vcount())
 
         streetDepth, streetEdgeArea, drainInflow, tempPeakDischarge = street.update(ts[n],dt,runoff,drainOverflow)
+        pprint(f"peak Discharge: {tempPeakDischarge}")
         if peakDischarge < tempPeakDischarge:
             # pprint(f"The largest is from street: {peakDischarge} < {tempPeakDischarge}")
             peakDischarge = tempPeakDischarge
@@ -127,7 +130,8 @@ if __name__ == "__main__":
 
     file = "largerExample"
     doubleFile = "doubled_largerExample"
+    example(file, rainfall, rainfallTimes, 1800, createVisuals=True)
     # file = "largerExample"
-    for dt in [300,900,1800,3600]:
-        example(file, rainfall, rainfallTimes, dt, createVisuals=True)
-        example(doubleFile, rainfall, rainfallTimes, dt, createVisuals=True)
+    # for dt in [300,900,1800,3600]:
+        # example(file, rainfall, rainfallTimes, dt, createVisuals=True)
+        # example(doubleFile, rainfall, rainfallTimes, dt, createVisuals=True)

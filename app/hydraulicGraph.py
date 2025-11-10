@@ -160,6 +160,7 @@ class HydraulicGraph:
 
         for nid in order:
             # NOTE: This should only be outfall nodes, so it would be a good place to track discharge
+            pprint(f"ordered nodes: {order}")
 
             if self.G.vs[nid].outdegree() != 0:
                 eid = self.G.vs[nid].incident(mode="out")[0].index
