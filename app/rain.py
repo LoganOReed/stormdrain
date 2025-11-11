@@ -17,10 +17,10 @@ from .visualize import visualize
 
 
 
-def normalizeRainfall(rainfall, rainfallTimes, spaceConversion=0.0254, timeConversion=3600, oldwaterPercentage=0.2):
+def normalizeRainfall(rainfall, rainfallTimes, spaceConversion=0.0254, timeConversion=3600):
     """Converts rainfall array data with sample times to m/s."""
     # to meters
-    rainfall = np.array([e * spaceConversion * (1-oldwaterPercentage) for e in rainfall])
+    rainfall = np.array([e * spaceConversion for e in rainfall])
     rainfallTimes = np.array(rainfallTimes) * timeConversion
     rainfall = [e / timeConversion for e in rainfall]
     return rainfall, rainfallTimes

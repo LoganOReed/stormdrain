@@ -66,17 +66,16 @@ def example(file, rainfall, rainfallTimes, dt, createVisuals=True):
             i += 1
         # pprint(f"runoff unsorted: {runoffUnsorted}")
         # pprint(f"runoff: {runoff}")
-        # pprint(f"runoff: {runoff}")
+        pprint(f"runoff: {runoff}")
         # peakDischarge = np.max(np.abs(runoff))
-        peakDischarge = 0
         runoffs.append(runoff)
 
         drainOverflow = np.zeros(street.G.vcount())
 
+        peakDischarge = peakDischarges[-1]
+
         streetDepth, streetEdgeArea, drainInflow, tempPeakDischarge = street.update(ts[n],dt,runoff,drainOverflow)
-        pprint(f"peak Discharge: {tempPeakDischarge}")
-        if peakDischarge < tempPeakDischarge:
-            # pprint(f"The largest is from street: {peakDischarge} < {tempPeakDischarge}")
+        if tempPeakDischarge != 0:
             peakDischarge = tempPeakDischarge
         streetDepths.append(streetDepth)
         streetEdgeAreas.append(streetEdgeArea)
@@ -84,8 +83,7 @@ def example(file, rainfall, rainfallTimes, dt, createVisuals=True):
 
         # update sewer
         sewerDepth, sewerEdgeArea, drainOverflow, tempPeakDischarge = sewer.update(ts[n],dt,drainInflow)
-        if peakDischarge < tempPeakDischarge:
-            peakDischarge = tempPeakDischarge
+        peakDischarge = peakDischarge + tempPeakDischarge
         sewerDepths.append(sewerDepth)
         sewerEdgeAreas.append(sewerEdgeArea)
         drainOutflows.append(drainOverflow)
@@ -130,8 +128,8 @@ if __name__ == "__main__":
 
     file = "largerExample"
     doubleFile = "doubled_largerExample"
-    example(file, rainfall, rainfallTimes, 1800, createVisuals=True)
+    # example(file, rainfall, rainfallTimes, 1800, createVisuals=True)
     # file = "largerExample"
-    # for dt in [300,900,1800,3600]:
-        # example(file, rainfall, rainfallTimes, dt, createVisuals=True)
-        # example(doubleFile, rainfall, rainfallTimes, dt, createVisuals=True)
+    for dt in [300,900,1800,3600]:
+        example(file, rainfall, rainfallTimes, dt, createVisuals=True)
+        example(doubleFile, rainfall, rainfallTimes, dt, createVisuals=True)

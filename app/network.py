@@ -14,8 +14,9 @@ from . import A_tbl, R_tbl, STREET_Y_FULL, STREET_LANE_SLOPE
 
 class SubcatchmentGraph:
     """Class which implements the Subcatchment Network."""
-    def __init__(self, file):
+    def __init__(self, file, oldwaterRatio=0.2):
         super(SubcatchmentGraph, self).__init__()
+        self.oldwaterRatio = oldwaterRatio
         # TODO: Make csv also include subcatchment edges
         data = pd.read_csv(f"data/{file}.csv")
         street = data[data["type"].str.contains("STREET")]
@@ -79,8 +80,8 @@ class SubcatchmentGraph:
                 depth_above_invert = np.maximum(x[i] - self.G.vs['invert'][i], 0.0)
                 # outgoingRunoff
                 outflow[i] = a * np.power(depth_above_invert, 5/3)
-                # TODO: Fix rainfall somehow
-                y[i] = rainfall + incomingRunoff[i] - outflow[i]
+                # NOTE: We remove a certain percentage of the rainfall as old water (infiltration + evaporation)
+                y[i] = rainfall*self.oldwaterRatio + incomingRunoff[i] - outflow[i]
             # print(f"incomingRunoff: {incomingRunoff}")
             return y
     
@@ -408,6 +409,11 @@ class StreetGraph:
         kineticFlow(t, dt, runoff, drainOverflows)
         # TODO: Add more reporting things here
         averageArea = np.divide(self.G.es['A1'] + self.G.es['A2'],2.0) 
+
+        outfallNode = self.G.vs.select(type_eq=1)[0]
+        lastEdge = outfallNode.in_edges()[0]
+        pprint(f"Outfall Flow: {self.G.es[lastEdge.index]["Q2New"]}")
+        peakDischarge = self.G.es[lastEdge.index]["Q2New"]
         # pprint(f"Average Area: {averageArea}")
         # pprint(f"New Depth:{self.G.vs['depth']}")
         return self.G.vs['depth'], averageArea, drainInflow, peakDischarge             
@@ -872,6 +878,11 @@ class SewerGraph:
         kineticFlow(t, dt, drainInflow)
         # TODO: Add more reporting things here
         averageArea = np.divide(self.G.es['A1'] + self.G.es['A2'],2.0) 
+
+        outfallNode = self.G.vs.select(type_eq=1)[0]
+        lastEdge = outfallNode.in_edges()[0]
+        pprint(f"Outfall Flow: {self.G.es[lastEdge.index]["Q2New"]}")
+        peakDischarge = self.G.es[lastEdge.index]["Q2New"]
         # pprint(f"Average Area: {averageArea}")
         # pprint(f"New Depth:{self.G.vs['depth']}")
         return self.G.vs['depth'], averageArea, drainOutflow, peakDischarge
