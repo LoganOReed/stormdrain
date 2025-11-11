@@ -43,7 +43,7 @@ def example(file, rainfall, rainfallTimes, dt, createVisuals=True):
     # TODO: Have subcatchment coupling happen by passing hydraulicCoupling and runoff to sewer update function
 
     # NOTE: Actual Update Loop
-    peakDischarges = []
+    peakDischarges = [0]
     # 900 s = 15 min, needs to match rainfall array
     T = max(rainfallTimes)
     pprint(f"0 to {T}, total steps = {T / dt}")
@@ -96,6 +96,8 @@ def example(file, rainfall, rainfallTimes, dt, createVisuals=True):
         
     # TODO: Actually store these 
 
+    # remove temp initialization
+    peakDischarges = peakDischarges[1:]
     if createVisuals == True:
         if file=="largerExample":
             name = "SingleJunction"
@@ -130,6 +132,7 @@ if __name__ == "__main__":
     doubleFile = "doubled_largerExample"
     # example(file, rainfall, rainfallTimes, 1800, createVisuals=True)
     # file = "largerExample"
-    for dt in [300,900,1800,3600]:
+    # for dt in [300,900,1800,3600]:
+    for dt in [900,1800,3600]:
         example(file, rainfall, rainfallTimes, dt, createVisuals=True)
         example(doubleFile, rainfall, rainfallTimes, dt, createVisuals=True)
