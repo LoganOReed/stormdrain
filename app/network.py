@@ -29,7 +29,7 @@ class SubcatchmentGraph:
         self.hydraulicCoupling = np.array(data["outgoing"].astype(int))
         self.G = ig.Graph(n=n,edges=edges,directed=True,
               vertex_attrs={
-                  'coupledID': np.array(street["id"].astype(int)),
+                  'coupledID': np.array(data["id"].astype(int)),
                   'invert': np.zeros(n),
                   'x': np.array(data["x"].astype(float)),
                   'y': np.array(data["y"].astype(float)),
