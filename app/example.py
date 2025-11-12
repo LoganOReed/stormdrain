@@ -128,11 +128,12 @@ if __name__ == "__main__":
     # rainfall, rainfallTimes = normalizeRainfall(rainfall, rainfallTimes, spaceConversion=0.0254, timeConversion=3600)
     rainfall, rainfallTimes = normalizeRainfall(rainfall, rainfallTimes, spaceConversion, timeConversion)
 
+    simpleFile = "SimpleExampleClogged"
     file = "largerExample"
     doubleFile = "doubled_largerExample"
-    # example(file, rainfall, rainfallTimes, 1800, createVisuals=True)
+    example(simpleFile, rainfall, rainfallTimes, 900, createVisuals=True)
     # file = "largerExample"
     # for dt in [300,900,1800,3600]:
-    for dt in [900,1800,3600]:
-        example(file, rainfall, rainfallTimes, dt, createVisuals=True)
-        example(doubleFile, rainfall, rainfallTimes, dt, createVisuals=True)
+    # for dt in [900,1800,3600]:
+        # example(file, rainfall, rainfallTimes, dt, createVisuals=True)
+        # example(doubleFile, rainfall, rainfallTimes, dt, createVisuals=True)
