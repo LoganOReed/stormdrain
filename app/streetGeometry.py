@@ -146,8 +146,11 @@ def psiFromAreaStreet(A, A_tbl, R_tbl, Y_full):
     
     # Section factor
     Psi = A * (RY)**(2/3)
+
+    if Psi < 0:
+        raise ValueError(f"Negative psifromareastreet: {A}")
     
-    return max(Psi,1e-10)
+    return Psi
 
 
 def areaFromPsiStreet(Psi, A_tbl, R_tbl, Y_full):

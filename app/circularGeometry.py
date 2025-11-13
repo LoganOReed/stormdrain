@@ -19,7 +19,7 @@ def _angleFromArea(A, Yfull):
     Aratio = np.divide(A, Afull)
     # This is an initial guess from the pdf
     theta = 0.031715 - 12.79384 * Aratio + 8.28479 * np.power(Aratio,0.5)
-    theta = sp.optimize.newton(lambda x: 2*np.pi*A - (Afull * (x - np.sin(x)) ), theta, rtol=1e-4, maxiter = 100)
+    theta = sp.optimize.newton(lambda x: 2*np.pi*A - (Afull * (x - np.sin(x)) ), theta, rtol=1e-6, maxiter = 100)
     return theta 
 
 
