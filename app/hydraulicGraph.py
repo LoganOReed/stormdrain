@@ -143,6 +143,7 @@ class HydraulicGraph:
 
 
         """
+        newCoupledInputs = coupledInputs
         # save previous iteration incase its needed
         self.G.es['Q1Prev'] = self.G.es['Q1']
         self.G.es['Q2Prev'] = self.G.es['Q2']
@@ -160,23 +161,25 @@ class HydraulicGraph:
 
         for nid in order:
             # NOTE: This should only be outfall nodes, so it would be a good place to track discharge
-            pprint(f"ordered nodes: {order}")
+            # pprint(f"ordered nodes: {order}")
 
             if self.G.vs[nid].outdegree() != 0:
                 eid = self.G.vs[nid].incident(mode="out")[0].index
             # pprint(f"eid: {eid}")
             #2. get Q_2^n+1 of prev nodes
             if self.G.vs[nid].indegree() != 0:
-                iedges = [a.index for a in self.G.vs[nid].predecessors()]
+                iedges = np.array([a.index for a in self.G.vs[nid].incident(mode="in")])
             else:
                 iedges = []
             # pprint(f"indegree of {nid}: {self.G.vs[nid].indegree()} and incident to: {iedges}")
             # pprint(f"Node: {nid} edges: {iedges}")
 
             # get incoming edges Q2^n+1 
-            incomingEdgeFlows = [self.G.get_eid(i, nid) for i in iedges]
+            # incomingEdgeFlows = [self.G.get_eid(i, nid) for i in iedges]
             # NOTE: Because of the topological sorting these will be Q2^n+1
-            incomingEdgeFlows = np.sum(self.G.es[incomingEdgeFlows]["Q2"])
+            incomingEdgeFlows = np.sum(self.G.es[iedges]["Q2"])
+            pprint(f'incident to {nid}: {iedges}')
+            pprint(f"IncomingEdgeFlows: {incomingEdgeFlows}")
             # pprint(f"incomingEdgeFlows: {incomingEdgeFlows}")
 
             # If this loop is the outfall node, keepthis as the peak discharge
@@ -190,19 +193,27 @@ class HydraulicGraph:
             #3. get any coupled inputs for the node (which are computed elsewhere)
             # subcatchments
             if self.graphType == "STREET":
-                subcatchmentIncomingFlow = coupledInputs["subcatchments"][self.G.vs[nid]["coupledID"]]
+                subcatchmentIncomingFlow = coupledInputs["subcatchmentRunoff"][self.G.vs[nid]["coupledID"]]
+                
+                pprint(f"incoming runoff {nid}: {subcatchmentIncomingFlow}")
             else:
                 subcatchmentIncomingFlow = 0
 
             # drains
             if self.graphType == "STREET":
+                # compute captured flow if node has drain
+                if self.G.vs[nid]["drain"] == 1:
+                    pprint(f"Previous Q: {self.G.es[eid]["Q1Prev"]}\nPrevious A: {self.G.es[eid]["A1Prev"]}")
+                    coupledInputs["drainCapture"][self.G.vs[nid]["coupledID"]-1] = capturedFlow(self.G.es[eid]["Q1Prev"], self.G.es[eid]["A1Prev"], self.G.es[eid]["slope"], self.G.es[eid]["Sx"], self.G.vs[nid]["drainLength"], self.G.vs[nid]["drainWidth"], self.G.es[eid]["n"])
+                    pprint(f'Q: {self.G.es[eid]["Q1Prev"]}\n A: {self.G.es[eid]["A1Prev"]}\n slope: {self.G.es[eid]["slope"]}\n Sx: {self.G.es[eid]["Sx"]}\n drain length: {self.G.vs[nid]["drainLength"]}\n drain width: {self.G.vs[nid]["drainWidth"]}\n {self.G.es[eid]["n"]}')
+                    pprint(f"capturedFlow for {nid}: {coupledInputs['drainCapture'][self.G.vs[nid]["coupledID"]-1]}")
                 drainCaptureIncomingFlow = 0
-                drainCaptureOutgoingFlow = coupledInputs["drainCapture"][self.G.vs[nid]["coupledID"]]
+                drainCaptureOutgoingFlow = -1* coupledInputs["drainCapture"][self.G.vs[nid]["coupledID"]-1]
                 if drainCaptureOutgoingFlow > 0:
                     raise ValueError(f"{self.graphType} node {nid} has positive drain capture, it should be negative: {drainCaptureOutgoingFlow}.")
             else:
                 drainCaptureOutgoingFlow = 0
-                drainCaptureIncomingFlow = coupledInputs["drainCapture"][self.G.vs[nid]["coupledID"]]
+                drainCaptureIncomingFlow = coupledInputs["drainCapture"][self.G.vs[nid]["coupledID"]-1]
                 if drainCaptureIncomingFlow  < 0:
                     raise ValueError(f"{self.graphType} node {nid} has negative drain capture, it should be positive: {drainCaptureIncomingFlow}.")
             
@@ -213,6 +224,9 @@ class HydraulicGraph:
             # combine all of the incoming coupling terms
             incomingCoupledFlows = subcatchmentIncomingFlow + drainCaptureIncomingFlow + drainOverflow
 
+            # update coupledInputs
+
+
 
             # coupledIncomingFlows = coupledInputs[self.G.vs[nid]["coupledID"]]
             # pprint(f"coupledIncomingFlows: {coupledIncomingFlows}")
@@ -220,6 +234,7 @@ class HydraulicGraph:
             #4. Use #2. and #3. to find Q_1^n+1
             self.G.es[eid]["Q1"] = incomingEdgeFlows + incomingCoupledFlows
             self.G.es[eid]["Q1"] = max(0, self.G.es[eid]["Q1"] + drainCaptureOutgoingFlow)
+            pprint(f"New Q1: {self.G.es[eid]["Q1"]}")
 
             
             #5. Compute A_1^n+1 using Manning and #4.
@@ -227,8 +242,10 @@ class HydraulicGraph:
                 self.G.es[eid]["A1"] = 0.0
             elif self.graphType == "STREET":
                 self.G.es[eid]["A1"] = areaFromPsiStreet(self.G.es[eid]["Q1"], A_tbl, R_tbl, self.G.es[eid]["yFull"])
+                pprint(f"New A1 STREET: {self.G.es[eid]["A1"]}")
             else:
                 self.G.es[eid]["A1"] = areaFromPsiCircle(self.G.es[eid]["Q1"], self.G.es[eid]["yFull"])
+                pprint(f"New A1 SEWER: {self.G.es[eid]["A1"]}")
             # pprint(self.G.es[eid]["A1"])
 
 

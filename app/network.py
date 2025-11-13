@@ -42,6 +42,9 @@ class SubcatchmentGraph:
                   'n': np.array([0.017 for _ in range(n)]),
                   'depth': np.zeros(n),
                   })
+        self.G.vs['coupledStreet'] = np.array(data["outgoing"])
+        # pprint(f"outgoing indexes: {np.array(data["outgoing"])}")
+
 
     def update(self, t, dt, rainfall):
         """
