@@ -48,7 +48,27 @@ class Model:
         # Setup coupling
         self.coupling = {"subcatchmentRunoff": np.zeros(self.data.shape[0]), "drainCapture": np.zeros(self.data.shape[0]), "drainOverflow": np.zeros(self.data.shape[0])}
 
+        # setup storage for observables
+        self.subcatchmentDepths = []
+        self.runoffs = []
+        self.streetDepths = []
+        self.streetEdgeAreas = []
+        self.sewerDepths = []
+        self.sewerEdgeAreas = []
+        self.drainOverflows = []
+        self.drainInflows = []
+        self.peakDischarges = []
+
+
+
         # TODO: Add whatever we want to report (e.g. depth, flow, etc)
+
+    def run(self):
+        for n in range(len(self.ts)):
+            self.step(n)
+            pprint(f"peakDischarges: {self.peakDischarges}")
+        visualize(self.subcatchment, self.street, self.street.yFull, self.sewer, 0.5, self.subcatchmentDepths, self.runoffs, self.streetDepths, self.streetEdgeAreas, self.sewerDepths, self.sewerEdgeAreas, self.drainOverflows, self.drainInflows, self.rainfallTimes, self.rainfall, self.peakDischarges, self.dt, file=f"{file}{dt}dt", cmap=plt.cm.plasma, fps=5 )
+        
 
 
     def step(self, n):
@@ -56,32 +76,46 @@ class Model:
         newCoupling = {"subcatchmentRunoff": np.zeros(self.data.shape[0]), "drainCapture": np.zeros(self.data.shape[0]), "drainOverflow": np.zeros(self.data.shape[0])}
 
         # Subcatchment Update
-        _, tempRunoff = self.subcatchment.update(self.ts[n], self.dt, self.rain[n])
+        subcatchmentDepth, tempRunoff = self.subcatchment.update(self.ts[n], self.dt, self.rain[n])
         # map runoff to correct indexes and add to coupling terms
         for i in range(len(tempRunoff)):
             # pprint(f' street id for subcatchment: {self.subcatchment.G.vs[i]["coupledStreet"]-1}')
             newCoupling["subcatchmentRunoff"][self.subcatchment.G.vs[i]["coupledStreet"]-1] = tempRunoff[i]
 
         # Street Update
-        _, _, tempCoupling, _ = self.street.update(self.ts[n],self.dt,self.coupling)
+        streetDepth, streetEdgeArea, tempCoupling, streetPeakDischarge = self.street.update(self.ts[n],self.dt,self.coupling)
         # pprint(f"after street: {tempCoupling}")
         newCoupling["drainCapture"] = tempCoupling["drainCapture"]
 
 
         # Sewer Update
-        _, _, tempCoupling, _ = self.sewer.update(self.ts[n],self.dt,self.coupling)
+        sewerDepth, sewerEdgeArea, tempCoupling, sewerPeakDischarge = self.sewer.update(self.ts[n],self.dt,self.coupling)
         newCoupling["drainOverflow"] = tempCoupling["drainOverflow"]
 
-        pprint(self.sewer.G.es["Q1"])
+        # pprint(self.sewer.G.es["Q1"])
 
         # Call observable functions
+        self.subcatchmentDepths.append(subcatchmentDepth)
+        self.runoffs.append(np.zeros(self.subcatchment.G.vcount()))
+        self.streetDepths.append(streetDepth)
+        self.streetEdgeAreas.append(streetEdgeArea)
+        self.sewerDepths.append(sewerDepth)
+        self.sewerEdgeAreas.append(sewerEdgeArea)
+        self.drainOverflows.append(np.zeros(self.street.G.vcount()))
+        self.drainInflows.append(np.zeros(self.sewer.G.vcount()))
+        self.peakDischarges.append(streetPeakDischarge+sewerPeakDischarge)
+
+        
         # pprint(f"New Coupling: {newCoupling}")
 
         # Update Coupling Terms
         self.coupling["subcatchmentRunoff"] = newCoupling["subcatchmentRunoff"]
         self.coupling["drainCapture"] = newCoupling["drainCapture"]
         self.coupling["drainOverflow"] = newCoupling["drainOverflow"]
+
         
+
+
         
 
 
@@ -97,6 +131,6 @@ if __name__ == "__main__":
             }
     dt = 1800
     model = Model(file, dt, rainInfo, oldwaterRatio=0.2)
-    for i in range(100):
-        model.step(i)
+    model.run()
+
 

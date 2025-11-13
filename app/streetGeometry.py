@@ -249,7 +249,7 @@ def plotStreetFunctions(diam):
     plt.plot(As,Ys, label="d / d_full", color="blue")
     plt.plot(As,Psis, label="Psi / Psi_full", color="red")
     # plt.plot(As,Hs, label="H / H_full", color="purple")
-    # plt.plot(As,PsiPrimes, label="Psi' / Psi'_full", color="purple")
+    plt.plot(As,PsiPrimes, label="Psi' / Psi'_full", color="purple")
     plt.legend()
     plt.grid(True)
     plt.xlabel("A/A_full")

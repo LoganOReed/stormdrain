@@ -205,8 +205,8 @@ class HydraulicGraph:
                 if self.G.vs[nid]["drain"] == 1:
                     # pprint(f"Previous Q: {self.G.es[eid]["Q1Prev"]}\nPrevious A: {self.G.es[eid]["A1Prev"]}")
                     coupledInputs["drainCapture"][self.G.vs[nid]["coupledID"]-1] = capturedFlow(self.G.es[eid]["Q1Prev"], self.G.es[eid]["A1Prev"], self.G.es[eid]["slope"], self.G.es[eid]["Sx"], self.G.vs[nid]["drainLength"], self.G.vs[nid]["drainWidth"], self.G.es[eid]["n"])
-                    pprint(f'Q: {self.G.es[eid]["Q1Prev"]}\n A: {self.G.es[eid]["A1Prev"]}\n slope: {self.G.es[eid]["slope"]}\n Sx: {self.G.es[eid]["Sx"]}\n drain length: {self.G.vs[nid]["drainLength"]}\n drain width: {self.G.vs[nid]["drainWidth"]}\n {self.G.es[eid]["n"]}')
-                    pprint(f"capturedFlow for {nid}: {coupledInputs['drainCapture'][self.G.vs[nid]["coupledID"]-1]}")
+                    # pprint(f'Q: {self.G.es[eid]["Q1Prev"]}\n A: {self.G.es[eid]["A1Prev"]}\n slope: {self.G.es[eid]["slope"]}\n Sx: {self.G.es[eid]["Sx"]}\n drain length: {self.G.vs[nid]["drainLength"]}\n drain width: {self.G.vs[nid]["drainWidth"]}\n {self.G.es[eid]["n"]}')
+                    # pprint(f"capturedFlow for {nid}: {coupledInputs['drainCapture'][self.G.vs[nid]["coupledID"]-1]}")
                 drainCaptureIncomingFlow = 0
                 drainCaptureOutgoingFlow = -1* coupledInputs["drainCapture"][self.G.vs[nid]["coupledID"]-1]
                 if drainCaptureOutgoingFlow > 0:
@@ -341,6 +341,11 @@ class HydraulicGraph:
         # return self.G.es[eid]["A1"], self.G.es[eid]["A2"], self.G.es[eid]["Q1"], self.G.es[eid]["Q2"]
         # return self.G.vs['depth'], averageArea, drainInflow, peakDischarge
         averageArea = np.divide(self.G.es['A1'] + self.G.es['A2'],2.0) 
+
+        if self.graphType == "STREET":
+            peakDischarge = np.max(self.G.es['Q2'])
+        else:
+            peakDischarge = 0
         return self.G.vs['depth'], averageArea, coupledInputs, peakDischarge
 
 
