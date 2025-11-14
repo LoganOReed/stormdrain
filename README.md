@@ -1,6 +1,11 @@
 # Storm Drain
 TODO: Actually write readme :)
 
+```
+poetry run python -m app.NAMEOFFILE
+```
+
+
 Results from current setup with rainRate=0.375 and edges having 0.15 weight
 ```
 Runoff: 82074.1550000871, Drainage: 78988.80000135278, NewFraction: 0.5095781025460098, PeakDischarge: 2.6100000000000003
