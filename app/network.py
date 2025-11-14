@@ -201,7 +201,7 @@ class StreetGraph:
         # calculate the slope of each pipe
         for e in self.G.es:
             slope = (self.G.vs[e.source]['z'] - self.G.vs[e.target]['z']) / self.G.es[e.index]['length']
-            if slope < 0.0001:
+            if slope < 0.00003048:
                 print(f"WARNING: slope for edge ({e.source}, {e.target}) is too small.")
                 print(f"{e.source}: ({self.G.vs[e.source]['x']}, {self.G.vs[e.source]['y']}, {self.G.vs[e.source]['z']})")
                 print(f"{e.target}: ({self.G.vs[e.target]['x']}, {self.G.vs[e.target]['y']}, {self.G.vs[e.target]['z']})")
@@ -576,7 +576,7 @@ class SewerGraph:
             # calculate the slope of each pipe
             for e in self.G.es:
                 slope = self.G.vs[e.source]['z'] - self.G.vs[e.target]['z']
-                if slope < 0.0001:
+                if slope < 0.00003048:
                     print(f"WARNING: slope for edge {e} is too small.")
                 self.G.es[e.index]['slope'] = self.G.vs[e.source]['z'] - self.G.vs[e.target]['z']
             # print(self.G.es['slope'])
@@ -664,7 +664,7 @@ class SewerGraph:
             # calculate the slope of each pipe
             for e in self.G.es:
                 slope = self.G.vs[e.source]['z'] - self.G.vs[e.target]['z']
-                if slope < 0.0001:
+                if slope < 0.00003048:
                     print(f"WARNING: slope for edge ({e.source}, {e.target}) is too small.")
                     print(f"{e.source}: ({self.G.vs[e.source]['x']}, {self.G.vs[e.source]['y']}, {self.G.vs[e.source]['z']})")
                     print(f"{e.target}: ({self.G.vs[e.target]['x']}, {self.G.vs[e.target]['y']}, {self.G.vs[e.target]['z']})")
@@ -690,14 +690,14 @@ class SewerGraph:
             self.G.es['Q1'] = np.zeros(self.G.ecount())
             self.G.es['Q2'] = np.zeros(self.G.ecount())
             # NOTE: Cant initialize as zero because first update will fail
-            self.G.es['A1'] = np.full(self.G.ecount(),0.0001)
-            self.G.es['A2'] = np.full(self.G.ecount(),0.0001)
+            self.G.es['A1'] = np.full(self.G.ecount(),0.00003048)
+            self.G.es['A2'] = np.full(self.G.ecount(),0.00003048)
 
             self.G.es['Q1New'] = np.zeros(self.G.ecount())
             self.G.es['Q2New'] = np.zeros(self.G.ecount())
             # NOTE: Cant initialize as zero because first update will fail
-            self.G.es['A1New'] = np.full(self.G.ecount(),0.0001)
-            self.G.es['A2New'] = np.full(self.G.ecount(),0.0001)
+            self.G.es['A1New'] = np.full(self.G.ecount(),0.00003048)
+            self.G.es['A2New'] = np.full(self.G.ecount(),0.00003048)
             
             # TODO: Change this to actual yfull in the future
             self.yFull = A_tbl[-1]

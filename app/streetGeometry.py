@@ -203,16 +203,16 @@ def psiPrimeFromAreaStreet(A, A_tbl, R_tbl, Y_full):
     dA = 0.001 * A_full
     A = max(0, min(A, A_full))
     
-    # Handle edges: use one-sided diff if we're too close to 0 or A_full
+    # Handle edges: use one-sided diff 
     if A <= dA:
         Psi_p = psiFromAreaStreet(A + dA, At, Rt, Y_full)
         Psi_0 = psiFromAreaStreet(A, At, Rt, Y_full)
-        dPsi = (Psi_p - Psi_0) / dA  # forward diff
+        dPsi = (Psi_p - Psi_0) / dA  
         return dPsi
     elif A >= A_full - dA:
         Psi_0 = psiFromAreaStreet(A, At, Rt, Y_full)
         Psi_m = psiFromAreaStreet(A - dA, At, Rt, Y_full)
-        dPsi = (Psi_0 - Psi_m) / dA  # backward diff
+        dPsi = (Psi_0 - Psi_m) / dA 
         return dPsi
     
     # Central difference in the interior

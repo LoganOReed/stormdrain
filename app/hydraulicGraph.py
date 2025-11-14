@@ -82,7 +82,7 @@ class HydraulicGraph:
         # calculate the slope of each pipe
         for e in self.G.es:
             slope = (self.G.vs[e.source]['z'] - self.G.vs[e.target]['z']) / self.G.es[e.index]['length']
-            if slope < 0.0001:
+            if slope < 0.00003048:
                 print(f"WARNING: slope for edge ({e.source}, {e.target}) is too small.")
                 print(f"{e.source}: ({self.G.vs[e.source]['x']}, {self.G.vs[e.source]['y']}, {self.G.vs[e.source]['z']})")
                 print(f"{e.target}: ({self.G.vs[e.target]['x']}, {self.G.vs[e.target]['y']}, {self.G.vs[e.target]['z']})")
