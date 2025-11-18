@@ -76,7 +76,7 @@ def psiPrimeFromAreaCircle(A, Yfull):
         psiPrime = ( (5/3) - (2/3) * PPrime * R) * np.power(R, 2/3)
     else:
         # psi = np.interp(Aratio, circleTable["A"], circleTable["P"]) * PsiFull
-        i = int(Aratio * (CIRCLE_N - 1))
+        i = min(int(Aratio * (CIRCLE_N - 1)),len(circleTable["P"])-1)
         psiPrime = (circleTable["P"][i] - circleTable["P"][i - 1])*(CIRCLE_N - 1) * (PsiFull / Afull)
     return psiPrime
  

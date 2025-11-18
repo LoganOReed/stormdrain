@@ -7,7 +7,7 @@ import random
 from pprint import pprint
 from .newtonBisection import newtonBisection
 from .drainCapture import capturedFlow
-from .streetGeometry import depthFromAreaStreet, psiFromAreaStreet, psiPrimeFromAreaStreet, areaFromPsiStreet
+from .analyticStreetGeometry import depthFromAreaStreet, psiFromAreaStreet, psiPrimeFromAreaStreet, areaFromPsiStreet, fullAreaStreet
 from .circularGeometry import depthFromAreaCircle, psiFromAreaCircle, psiPrimeFromAreaCircle, areaFromPsiCircle
 from . import A_tbl, R_tbl, STREET_Y_FULL, STREET_LANE_SLOPE
 
@@ -94,7 +94,12 @@ class HydraulicGraph:
         # Needs to be given a priori
         self.G.es['offsetHeight'] = [0.0 for _ in range(self.G.ecount())]
         self.G.es['n'] =  np.full(n, 0.013)
-        self.G.es["Sx"] = np.full(n, STREET_LANE_SLOPE)
+        # self.G.es["Sx"] = np.full(n, STREET_LANE_SLOPE)
+        self.G.es["T_curb"] = 8*0.3048
+        self.G.es["T_crown"] = 15*0.3048
+        self.G.es["H_curb"] =  1*0.3048
+        self.G.es["S_back" ] = 0.02*0.3048
+        self.G.es["Sx"] = 0.02*0.304
 
         if self.graphType == "STREET":
             # This is a choice made when creating the street lookup tables
@@ -242,14 +247,36 @@ class HydraulicGraph:
 
             
             #5. Compute A_1^n+1 using Manning and #4.
+            p = {
+                'Q1': self.G.es[eid]["Q1"],
+                'n': self.G.es[eid]["n"],
+                'yFull': self.G.es[eid]["yFull"],
+                "T_curb": self.G.es[eid]["T_curb"],
+                "T_crown": self.G.es[eid]["T_crown"],
+                "H_curb": self.G.es[eid]["H_curb"],
+                "S_back": self.G.es[eid]["S_back" ],
+                "Sx": self.G.es[eid]["Sx"]
+            }
+            if self.graphType == "STREET":
+                def phiInverse(x,p):
+                    f = psiFromAreaStreet((p["Q1"] / p["n"]), p) - x
+                    fp = psiPrimeFromAreaStreet((p["Q1"] / p["n"]), p)
+                    return f, fp
+            else:
+                def phiInverse(x,p):
+                    f = psiFromAreaCircle((p["Q1"] / p["n"]), p["yFull"]) - x
+                    fp = psiPrimeFromAreaCircle((p["Q1"] / p["n"]), p["yFull"])
+                    return f, fp
+
             if self.G.es[eid]["Q1"] == 0.0:
                 self.G.es[eid]["A1"] = 0.0
             elif self.graphType == "STREET":
-                self.G.es[eid]["A1"] = areaFromPsiStreet(self.G.es[eid]["Q1"], A_tbl, R_tbl, self.G.es[eid]["yFull"])
-                # pprint(f"New A1 STREET: {self.G.es[eid]["A1"]}")
+
+                self.G.es[eid]["A1"], _ = newtonBisection(0, fullAreaStreet(p), phiInverse, p=p)
+                pprint(f"New A1 STREET: {self.G.es[eid]["A1"]}")
             else:
-                self.G.es[eid]["A1"] = areaFromPsiCircle(self.G.es[eid]["Q1"], self.G.es[eid]["yFull"])
-                # pprint(f"New A1 SEWER: {self.G.es[eid]["A1"]}")
+                self.G.es[eid]["A1"], _ = newtonBisection(0, (np.pi / 4)*self.G.es[eid]["yFull"]*self.G.es[eid]["yFull"], phiInverse, p=p)
+                pprint(f"New A1 SEWER: {self.G.es[eid]["A1"]}")
             # pprint(self.G.es[eid]["A1"])
 
 
@@ -266,7 +293,7 @@ class HydraulicGraph:
             #     pprint(f"beta is negative")
             def A2Func(x):
                 if self.graphType == "STREET":
-                    return beta*psiFromAreaStreet(x, A_tbl, R_tbl, STREET_Y_FULL) + c1 * x + c2
+                    return beta*psiFromAreaStreet(x, p) + c1 * x + c2
                 else:
                     return beta*psiFromAreaCircle(x, self.G.es[eid]["yFull"]) + c1 * x + c2
 
@@ -309,9 +336,9 @@ class HydraulicGraph:
             if self.G.es[eid]["A2"] == 0.0:
                 self.G.es[eid]["Q2"] = 0.0
             elif self.graphType == "STREET":
-                self.G.es[eid]["Q2"] = beta*psiFromAreaStreet(self.G.es[eid]["A2"], A_tbl, R_tbl, STREET_Y_FULL) + c1 * self.G.es[eid]["A2"] + c2
+                self.G.es[eid]["Q2"] = beta*psiFromAreaStreet(self.G.es[eid]["A2"], p)
             else:
-                self.G.es[eid]["Q2"] = beta*psiFromAreaCircle(self.G.es[eid]["A2"], self.G.es[eid]["yFull"]) + c1 * self.G.es[eid]["A2"] + c2
+                self.G.es[eid]["Q2"] = beta*psiFromAreaCircle(self.G.es[eid]["A2"], self.G.es[eid]["yFull"])
             # pprint(self.G.es[eid]["Q2"])
 
             # calculate depth
@@ -319,14 +346,14 @@ class HydraulicGraph:
                 maxDepth = 0.0
                 for edge in self.G.vs[nid].out_edges():
                     if self.graphType == "STREET":
-                        tempDepth = depthFromAreaStreet(edge['A1'], A_tbl, self.G.es[edge.index]["yFull"])
+                        tempDepth = depthFromAreaStreet(edge['A1'], p)
                     else:
                         tempDepth = depthFromAreaCircle(edge['A1'], self.G.es[edge.index]["yFull"])
                     if tempDepth > maxDepth:
                         maxDepth = tempDepth
                 for edge in self.G.vs[nid].in_edges():
                     if self.graphType == "STREET":
-                        tempDepth = depthFromAreaStreet(edge['A2'], A_tbl, self.G.es[edge.index]["yFull"])
+                        tempDepth = depthFromAreaStreet(edge['A2'], p)
                     else:
                         tempDepth = depthFromAreaCircle(edge['A2'], self.G.es[edge.index]["yFull"])
                     if tempDepth > maxDepth:
