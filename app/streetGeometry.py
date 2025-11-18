@@ -200,7 +200,7 @@ def psiPrimeFromAreaStreet(A, A_tbl, R_tbl, Y_full):
     
     # Full area and step size ΔA
     A_full = At[-1]
-    dA = 0.001 * A_full
+    dA = 0.0003048 * A_full
     A = max(0, min(A, A_full))
     
     # Handle edges: use one-sided diff 

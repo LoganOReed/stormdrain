@@ -26,7 +26,8 @@ def depthFromAreaStreet(A, ps):
         d = (A - belowCrownArea) / ps["T_crown"]
         d = d + ps["Sx"] * ps["T_crown"]
     # above curb but on sidewalk
-    # elif A > betweenCrownAndCurbArea and A <= onSidewalkArea:
+    elif A > betweenCrownAndCurbArea and A <= onSidewalkArea:
+        pass
         # d = ()
 
         

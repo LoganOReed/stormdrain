@@ -290,10 +290,10 @@ class HydraulicGraph:
             # This is the usual case, without bad arithmetic
             else:
                 if self.graphType == "STREET":
-                    sol = sp.optimize.root_scalar(A2Func, method="brentq", bracket=(0.0, A_tbl[-1]), rtol=0.001*A_tbl[-1], x0=self.G.es[eid]['A2Prev'])
+                    sol = sp.optimize.root_scalar(A2Func, method="newton", bracket=(0.0, A_tbl[-1]), x0=self.G.es[eid]['A2Prev'])
                 else:
                     Afull = 0.7854 * self.G.es[eid]['yFull'] * self.G.es[eid]['yFull']
-                    sol = sp.optimize.root_scalar(A2Func, method="brentq", bracket=(0.0, 0.7854 * self.G.es[eid]['yFull'] * self.G.es[eid]['yFull']), rtol=0.001*Afull, x0=self.G.es[eid]['A2Prev'])
+                    sol = sp.optimize.root_scalar(A2Func, method="newton", bracket=(0.0, 0.7854 * self.G.es[eid]['yFull'] * self.G.es[eid]['yFull']), x0=self.G.es[eid]['A2Prev'])
 
                 if sol.converged == False:
                     pprint(f"WARNING: Kinematic Update on {self.graphType} failed to converge at edge {eid}. Setting A2 to 0")
@@ -342,10 +342,11 @@ class HydraulicGraph:
         # return self.G.vs['depth'], averageArea, drainInflow, peakDischarge
         averageArea = np.divide(self.G.es['A1'] + self.G.es['A2'],2.0) 
 
-        if self.graphType == "STREET":
-            peakDischarge = np.max(self.G.es['Q2'])
-        else:
-            peakDischarge = 0
+        # if self.graphType == "STREET":
+        #     peakDischarge = np.max(self.G.es['Q2'])
+        # else:
+        #     peakDischarge = 0
+        peakDischarge = np.max(self.G.es['Q2'])
         return self.G.vs['depth'], averageArea, coupledInputs, peakDischarge
 
 

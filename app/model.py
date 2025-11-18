@@ -121,7 +121,7 @@ class Model:
 
 
 if __name__ == "__main__":
-    file = "doubled_largerExample"
+    file = "SimpleExample"
     tempRainfall = np.array([0.10, 0.15, 0.25, 0.40, 0.60, 0.80, 0.70, 0.50, 0.30, 0.20, 0.10, 0.05, 0.0,0.0,0.0,0.0])
     rainInfo = {
             "spaceConversion": 0.0254,

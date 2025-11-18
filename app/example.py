@@ -131,7 +131,7 @@ if __name__ == "__main__":
     simpleFile = "SimpleExampleClogged"
     file = "largerExample"
     doubleFile = "doubled_largerExample"
-    example(simpleFile, rainfall, rainfallTimes, 900, createVisuals=True)
+    example(file, rainfall, rainfallTimes, 900, createVisuals=True)
     # file = "largerExample"
     # for dt in [300,900,1800,3600]:
     # for dt in [900,1800,3600]:
