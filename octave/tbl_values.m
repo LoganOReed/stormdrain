@@ -142,9 +142,9 @@ end
 fprintf('Computation complete for %d points (k=1,...,50).\n', N_K);
 %% save results as .mat
 
-A_tbl51 = [0, A_tbl];    % add k=0 row
-R_tbl51 = [0, R_tbl];    
+A_tbl50 = A_tbl;    
+R_tbl50 = R_tbl;    
 
-save('A_tbl51.mat','A_tbl51');   % store the 51 points
-save('R_tbl51.mat','R_tbl51');        
+save('A_tbl50.mat','A_tbl50');   % store the 50 points
+save('R_tbl50.mat','R_tbl50');        
 
