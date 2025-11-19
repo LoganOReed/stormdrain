@@ -4,8 +4,9 @@ import networkx as nx
 import numpy as np
 from sys import platform
 import matplotlib
+
 if platform == "linux":
-    matplotlib.use('module://matplotlib-backend-kitty')
+    matplotlib.use("module://matplotlib-backend-kitty")
 import matplotlib.pyplot as plt
 import scipy as sc
 import random
@@ -15,7 +16,6 @@ from .network import SubcatchmentGraph, SewerGraph, StreetGraph
 from .newtonBisection import newtonBisection
 from .visualize import visualize
 from .rain import normalizeRainfall
-
 
 
 def example(file, rainfall, rainfallTimes, dt, createVisuals=True):
@@ -31,9 +31,6 @@ def example(file, rainfall, rainfallTimes, dt, createVisuals=True):
     drainInflows = []
     drainOutflows = []
 
-
-
-
     subcatchment = SubcatchmentGraph(file)
     street = StreetGraph(file)
     pprint(street.G.summary())
@@ -47,8 +44,8 @@ def example(file, rainfall, rainfallTimes, dt, createVisuals=True):
     # 900 s = 15 min, needs to match rainfall array
     T = max(rainfallTimes)
     pprint(f"0 to {T}, total steps = {T / dt}")
-    N = int(T/dt)
-    ts = np.linspace(0,T,N)
+    N = int(T / dt)
+    ts = np.linspace(0, T, N)
     rain = np.interp(ts, rainfallTimes, rainfall)
     pprint(f"rainfall: {rain}")
     for n in range(len(ts)):
@@ -74,7 +71,9 @@ def example(file, rainfall, rainfallTimes, dt, createVisuals=True):
 
         peakDischarge = peakDischarges[-1]
 
-        streetDepth, streetEdgeArea, drainInflow, tempPeakDischarge = street.update(ts[n],dt,runoff,drainOverflow)
+        streetDepth, streetEdgeArea, drainInflow, tempPeakDischarge = street.update(
+            ts[n], dt, runoff, drainOverflow
+        )
         if tempPeakDischarge != 0:
             peakDischarge = tempPeakDischarge
         streetDepths.append(streetDepth)
@@ -82,7 +81,9 @@ def example(file, rainfall, rainfallTimes, dt, createVisuals=True):
         drainInflows.append(drainInflow)
 
         # update sewer
-        sewerDepth, sewerEdgeArea, drainOverflow, tempPeakDischarge = sewer.update(ts[n],dt,drainInflow)
+        sewerDepth, sewerEdgeArea, drainOverflow, tempPeakDischarge = sewer.update(
+            ts[n], dt, drainInflow
+        )
         peakDischarge = peakDischarge + tempPeakDischarge
         sewerDepths.append(sewerDepth)
         sewerEdgeAreas.append(sewerEdgeArea)
@@ -93,19 +94,40 @@ def example(file, rainfall, rainfallTimes, dt, createVisuals=True):
         # pprint(f"SubcatchmentDepth: {subcatchmentDepth}")
         # pprint(f"runoff: {runoff}")
         peakDischarges.append(peakDischarge)
-        
-    # TODO: Actually store these 
+
+    # TODO: Actually store these
 
     # remove temp initialization
     peakDischarges = peakDischarges[1:]
     if createVisuals == True:
-        if file=="largerExample":
+        if file == "largerExample":
             name = "SingleJunction"
-        elif file=="doubled_largerExample":
+        elif file == "doubled_largerExample":
             name = "DoubleJunction"
         else:
-            name="ADDNAMETOCREATEVISUALSCONDITIONAL"
-        visualize(subcatchment, street, street.yFull, sewer, 0.5, subcatchmentDepths, runoffs, streetDepths, streetEdgeAreas, sewerDepths, sewerEdgeAreas, drainOverflows, drainInflows, rainfallTimes, rainfall, peakDischarges, dt, file=f"{name}{dt}dt", cmap=plt.cm.plasma, fps=5 )
+            name = "ADDNAMETOCREATEVISUALSCONDITIONAL"
+        visualize(
+            subcatchment,
+            street,
+            street.yFull,
+            sewer,
+            0.5,
+            subcatchmentDepths,
+            runoffs,
+            streetDepths,
+            streetEdgeAreas,
+            sewerDepths,
+            sewerEdgeAreas,
+            drainOverflows,
+            drainInflows,
+            rainfallTimes,
+            rainfall,
+            peakDischarges,
+            dt,
+            file=f"{name}{dt}dt",
+            cmap=plt.cm.plasma,
+            fps=5,
+        )
         # subcatchment.visualize(ts,subcatchmentDepths,fileName="subcatchmentGraph")
 
     # pprint(f"Runoffs: {runoffs}")
@@ -113,20 +135,39 @@ def example(file, rainfall, rainfallTimes, dt, createVisuals=True):
     # pprint(f"streetEdgeAreas: {streetEdgeAreas}")
     # pprint(f"drainInflows: {drainInflows}")
 
-   
-
 
 if __name__ == "__main__":
-    spaceConversion=0.0254
-    timeConversion=3600
+    spaceConversion = 0.0254
+    timeConversion = 3600
     # dt = 1800
-    rainfall = np.array([0.10, 0.15, 0.25, 0.40, 0.60, 0.80, 0.70, 0.50, 0.30, 0.20, 0.10, 0.05, 0.0,0.0,0.0,0.0])
+    rainfall = np.array(
+        [
+            0.10,
+            0.15,
+            0.25,
+            0.40,
+            0.60,
+            0.80,
+            0.70,
+            0.50,
+            0.30,
+            0.20,
+            0.10,
+            0.05,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+        ]
+    )
     pprint(f"sum of rainfall: {np.sum(rainfall)}")
     # rainfall = np.array([0.10, 0.15, 0.25, 0.40, 0.60, 0.80, 0.70, 0.50, 0.30, 0.20, 0.10, 0.05])
     # rainfall = [0.0,0.5,1.0,0.75,0.5]
     rainfallTimes = [i for i in range(len(rainfall))]
     # rainfall, rainfallTimes = normalizeRainfall(rainfall, rainfallTimes, spaceConversion=0.0254, timeConversion=3600)
-    rainfall, rainfallTimes = normalizeRainfall(rainfall, rainfallTimes, spaceConversion, timeConversion)
+    rainfall, rainfallTimes = normalizeRainfall(
+        rainfall, rainfallTimes, spaceConversion, timeConversion
+    )
 
     simpleFile = "SimpleExampleClogged"
     file = "largerExample"
@@ -135,5 +176,5 @@ if __name__ == "__main__":
     # file = "largerExample"
     # for dt in [300,900,1800,3600]:
     # for dt in [900,1800,3600]:
-        # example(file, rainfall, rainfallTimes, dt, createVisuals=True)
-        # example(doubleFile, rainfall, rainfallTimes, dt, createVisuals=True)
+    # example(file, rainfall, rainfallTimes, dt, createVisuals=True)
+    # example(doubleFile, rainfall, rainfallTimes, dt, createVisuals=True)

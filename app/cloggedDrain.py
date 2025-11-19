@@ -9,5 +9,3 @@ if __name__ == "__main__":
     data["drainLength"] = data["drainLength"] / 2
     model(data)
     pprint(data)
-
-    

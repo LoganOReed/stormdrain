@@ -8,15 +8,13 @@ from .network import SubcatchmentGraph
 from .rain import normalizeRainfall
 
 
-
 if __name__ == "__main__":
     file = "largerExample"
-    rainfall = [0.0,0.5,1.0,0.75,0.5]
+    rainfall = [0.0, 0.5, 1.0, 0.75, 0.5]
     # rainfall = [0.0,0.5,1.0,0.75,0.5,0.25,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]
     # rainfall = np.array([0.10, 0.15, 0.25, 0.40, 0.60, 0.80, 0.70, 0.50, 0.30, 0.20, 0.10, 0.05, 0.0,0.0,0.0])
     rainfallTimes = np.array([i for i in range(len(rainfall))])
-    rainfall, rainfallTimes = normalizeRainfall(rainfall,rainfallTimes)
-
+    rainfall, rainfallTimes = normalizeRainfall(rainfall, rainfallTimes)
 
     # Create plot for disconnected subcatchments
     g = SubcatchmentGraph(file)
@@ -25,9 +23,9 @@ if __name__ == "__main__":
     dt = 600
     T = max(rainfallTimes)
     pprint(f"0 to {T}, total steps = {T / dt}")
-    N = int(T/dt)
-    ts = np.linspace(0,T,N)
-    pprint(f"len(ts): {len(ts)}... int(T/dt): {int(T/dt)}")
+    N = int(T / dt)
+    ts = np.linspace(0, T, N)
+    pprint(f"len(ts): {len(ts)}... int(T/dt): {int(T / dt)}")
     rain = np.interp(ts, rainfallTimes, rainfall)
     pprint(f"rain: {rain}")
     for n in range(len(ts)):

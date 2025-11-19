@@ -4,8 +4,9 @@ import networkx as nx
 import numpy as np
 from sys import platform
 import matplotlib
+
 if platform == "linux":
-    matplotlib.use('module://matplotlib-backend-kitty')
+    matplotlib.use("module://matplotlib-backend-kitty")
 import matplotlib.pyplot as plt
 import scipy as sc
 import random
@@ -16,13 +17,31 @@ from .newtonBisection import newtonBisection
 from .visualize import visualize
 
 
-
-
-
 if __name__ == "__main__":
     # rainfall = [0.0,0.5,1.0,0.75,0.5,0.25,0.0]
     # rainfall = [0.01,0.5,1.0,1.1,1.3,1.5,1.8,2.0,2.0,2.0,2.0,2.0,2.0,2.0,2.0,2.0,2.0,2.0,2.0,2.0,2.0,1.6,1.3,1.2,1.1,0.85,0.75,0.5,0.3,0.1,0.1,0.1,0.1,0.0,0.0,0.0]
-    rainfall = np.array([0.10, 0.15, 0.25, 0.40, 0.60, 0.80, 0.70, 0.50, 0.30, 0.20, 0.10, 0.05, 0.0,0.0,0.0,0.0,0.0,0.0])
+    rainfall = np.array(
+        [
+            0.10,
+            0.15,
+            0.25,
+            0.40,
+            0.60,
+            0.80,
+            0.70,
+            0.50,
+            0.30,
+            0.20,
+            0.10,
+            0.05,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+        ]
+    )
 
     # rainfall = rainfall + rainfall
     # rainfall = rainfall + rainfall[::-1]
@@ -32,7 +51,6 @@ if __name__ == "__main__":
     rainfall = [rain / 4 for rain in rainfall for _ in range(4)]
     # rainfall = [0.01,0.2,0.3,0.5,0.6,0.8,1.0,1.0,1.0,1.5,1.8,2.0,2.0,2.0,2.0,2.0,2.0]
     # rainfall = rainfall + rainfall[::-1]
-
 
     T = len(rainfall)
 
@@ -46,7 +64,6 @@ if __name__ == "__main__":
     drainOverflows = []
     drainInflows = []
     drainOutflows = []
-
 
     subcatchment = SubcatchmentGraph(file)
     street = StreetGraph(file)
@@ -78,7 +95,9 @@ if __name__ == "__main__":
 
         drainOverflow = np.zeros(street.G.vcount())
 
-        streetDepth, streetEdgeArea, drainInflow, tempPeakDischarge = street.update(t,dt,runoff,drainOverflow)
+        streetDepth, streetEdgeArea, drainInflow, tempPeakDischarge = street.update(
+            t, dt, runoff, drainOverflow
+        )
         if peakDischarge < tempPeakDischarge:
             peakDischarge = tempPeakDischarge
         streetDepths.append(streetDepth)
@@ -86,7 +105,9 @@ if __name__ == "__main__":
         drainInflows.append(drainInflow)
 
         # update sewer
-        sewerDepth, sewerEdgeArea, drainOverflow, tempPeakDischarge = sewer.update(t,dt,drainInflow)
+        sewerDepth, sewerEdgeArea, drainOverflow, tempPeakDischarge = sewer.update(
+            t, dt, drainInflow
+        )
         if peakDischarge < tempPeakDischarge:
             peakDischarge = tempPeakDischarge
         sewerDepths.append(sewerDepth)
@@ -98,16 +119,33 @@ if __name__ == "__main__":
         # pprint(f"SubcatchmentDepth: {subcatchmentDepth}")
         # pprint(f"runoff: {runoff}")
         peakDischarges.append(peakDischarge)
-        
-    # TODO: Actually store these 
+
+    # TODO: Actually store these
 
     times = [i for i in range(T)]
 
-    visualize(subcatchment, street, street.yFull, sewer, 0.5, subcatchmentDepths, runoffs, streetDepths, streetEdgeAreas, sewerDepths, sewerEdgeAreas, drainOverflows, drainInflows, times, rainfall, peakDischarges, cmap=plt.cm.plasma, fps=20 )
+    visualize(
+        subcatchment,
+        street,
+        street.yFull,
+        sewer,
+        0.5,
+        subcatchmentDepths,
+        runoffs,
+        streetDepths,
+        streetEdgeAreas,
+        sewerDepths,
+        sewerEdgeAreas,
+        drainOverflows,
+        drainInflows,
+        times,
+        rainfall,
+        peakDischarges,
+        cmap=plt.cm.plasma,
+        fps=20,
+    )
 
     pprint(f"Runoffs: {runoffs}")
     pprint(f"streetDepths: {streetDepths}")
     pprint(f"streetEdgeAreas: {streetEdgeAreas}")
     pprint(f"drainInflows: {drainInflows}")
-
-
