@@ -1,163 +1,10 @@
-import igraph as ig
-import numpy as np
-import matplotlib.pyplot as plt
-import scipy as sp
-import pandas as pd
-import random
-from pprint import pprint
-from .newtonBisection import newtonBisection
-from .drainCapture import capturedFlow
-from .analyticStreetGeometry import (
-    depthFromAreaStreet,
-    psiFromAreaStreet,
-    psiPrimeFromAreaStreet,
-    areaFromPsiStreet,
-    fullAreaStreet,
-)
-from .circularGeometry import (
-    depthFromAreaCircle,
-    psiFromAreaCircle,
-    psiPrimeFromAreaCircle,
-    areaFromPsiCircle,
-)
-from . import A_tbl, R_tbl, STREET_Y_FULL, STREET_LANE_SLOPE
-
-
-class HydraulicGraph:
-    """Parent Hydraulic Graph for both Street and Sewer Graph."""
-
+class tempUpdate:
     def __init__(self, graphType, file):
-        super(HydraulicGraph, self).__init__()
-        self.graphType = graphType
-        if graphType == "STREET":
-            self.depthFromArea = depthFromAreaStreet
-            self.psiFromArea = psiFromAreaStreet
-            self.psiPrimeFromArea = psiPrimeFromAreaStreet
-            self.yFull = STREET_Y_FULL  # diff between lowest and highest point from choice of Street Parameters
-        else:
-            # TODO: Change this to circular geometry
-            self.depthFromArea = depthFromAreaCircle
-            self.psiFromArea = psiFromAreaCircle
-            self.psiPrimeFromArea = psiPrimeFromAreaCircle
+        pass
 
-        data = pd.read_csv(f"data/{file}.csv")
-        data = data[data["type"].str.contains(graphType)]
-        n = data.shape[0]
-
-        # Needed to create edges
-        edges = []
-        mapToID = []
-        i = 0
-        for _, row in data.iterrows():
-            mapToID.append((row["id"], i))
-            i = i + 1
-
-        # Creates the edges by translating the node id's in the csv into 0-indexed sewer nodes
-        for _, row in data.iterrows():
-            # pprint(f"{index}, {row["id"]}")
-            if row["outgoing"] != -1:
-                id = row["id"]
-                outgoing = row["outgoing"]
-                for pair in mapToID:
-                    if pair[0] == id:
-                        id = pair[1]
-                    if pair[0] == outgoing:
-                        outgoing = pair[1]
-                edges.append((id, outgoing))
-
-        self.G = ig.Graph(
-            n=n,
-            edges=edges,
-            directed=True,
-            vertex_attrs={
-                "coupledID": np.array(data["id"].astype(int)),
-                "invert": np.zeros(n),
-                "x": np.array(data["x"].astype(float)),
-                "y": np.array(data["y"].astype(float)),
-                "z": np.array(data["z"].astype(float)),
-                "depth": np.zeros(n),
-                # 0 - junction
-                # 1 - outfall
-                "type": np.array(data["type"].str.contains("OUTFALL").astype(int)),
-                "drain": np.array(data["drain"].astype(int)),
-                "drainType": np.array(data["drainType"]),
-                "drainCoupledID": np.array(data["drainCoupledID"].astype(int)),
-                "drainLength": np.array(data["drainLength"].astype(float)),
-                "drainWidth": np.array(data["drainWidth"].astype(float)),
-            },
-        )
-        # calculate the lengths of each pipe
-        for e in self.G.es:
-            s = np.array(
-                [
-                    self.G.vs[e.source]["x"],
-                    self.G.vs[e.source]["y"],
-                    self.G.vs[e.source]["z"],
-                ]
-            )
-            d = np.array(
-                [
-                    self.G.vs[e.target]["x"],
-                    self.G.vs[e.target]["y"],
-                    self.G.vs[e.target]["z"],
-                ]
-            )
-            self.G.es[e.index]["length"] = np.linalg.norm(s - d)
-        # calculate the slope of each pipe
-        for e in self.G.es:
-            slope = (self.G.vs[e.source]["z"] - self.G.vs[e.target]["z"]) / self.G.es[
-                e.index
-            ]["length"]
-            if slope < 0.00003048:
-                print(f"WARNING: slope for edge ({e.source}, {e.target}) is too small.")
-                print(
-                    f"{e.source}: ({self.G.vs[e.source]['x']}, {self.G.vs[e.source]['y']}, {self.G.vs[e.source]['z']})"
-                )
-                print(
-                    f"{e.target}: ({self.G.vs[e.target]['x']}, {self.G.vs[e.target]['y']}, {self.G.vs[e.target]['z']})"
-                )
-            self.G.es[e.index]["slope"] = slope
-
-        # pprint(f"Slopes: {self.G.es['slope']}")
-        # pprint(f"Length: {self.G.es['length']}")
-        # TODO: add offset height calculations
-        # Needs to be given a priori
-        self.G.es["offsetHeight"] = [0.0 for _ in range(self.G.ecount())]
-        self.G.es["n"] = np.full(n, 0.013)
-        # self.G.es["Sx"] = np.full(n, STREET_LANE_SLOPE)
-        self.G.es["T_curb"] = 8 * 0.3048
-        self.G.es["T_crown"] = 15 * 0.3048
-        self.G.es["H_curb"] = 1 * 0.3048
-        self.G.es["S_back"] = 0.02 * 0.3048
-        self.G.es["Sx"] = 0.02 * 0.304
-
-        if self.graphType == "STREET":
-            # This is a choice made when creating the street lookup tables
-            self.G.es["yFull"] = [STREET_Y_FULL for _ in self.G.es]
-        else:
-            # corresponds to around 18in pipe
-            self.G.es["yFull"] = [0.5 for _ in self.G.es]
-
-        # 1 is source node and 2 is target node
-        self.G.es["Q1"] = np.zeros(self.G.ecount())
-        self.G.es["Q2"] = np.zeros(self.G.ecount())
-        self.G.es["A1"] = np.zeros(self.G.ecount())
-        self.G.es["A2"] = np.zeros(self.G.ecount())
-
-        self.G.es["Q1Prev"] = np.zeros(self.G.ecount())
-        self.G.es["Q2Prev"] = np.zeros(self.G.ecount())
-        self.G.es["A1Prev"] = np.zeros(self.G.ecount())
-        self.G.es["A2Prev"] = np.zeros(self.G.ecount())
-        # pprint(self.G.summary())
-
-    def getCoupledInputs(coupled):
-        """Converts coupled matrix for all networks into sum of coupling terms in network id order."""
-        pprint(f'Coupled IDs for {self.graphType} network: self.G.vs["coupledID"]')
-
-    # TODO: change runoff/DrainOverflows/DrainInflows to be hydraulicGraph agnostic for inputs and outputs
-    def update(self, t, dt, coupledInputs):
+    def NEWERupdate(self, t, dt, coupledInputs):
         """
-        Updates the A1,A2,Q1,Q2 of the network.
+        Updates the attributes of the network.
 
         Parameters:
         -----------
@@ -468,6 +315,209 @@ class HydraulicGraph:
         peakDischarge = np.max(self.G.es["Q2"])
         return self.G.vs["depth"], averageArea, coupledInputs, peakDischarge
 
+    def OLDUpdate(self, t, dt, runoff, drainOverflows):
+        """
+        Updates the attributes of the Street network using the kinematic Model.
 
-if __name__ == "__main__":
-    print("Dont call this directly :(")
+        Parameters:
+        -----------
+        t : float
+            initial time
+        dt : float
+            time between initial time and desired end time
+        rainfall : float
+            average rainfall measured over the time [t,t+dt]
+
+        Returns:
+        --------
+        depths : list
+            Updated depths ordered by igraph id
+
+        """
+        # keeps track of inflows for sewer coupling
+        peakDischarge = 0.0
+        drainInflow = np.zeros(self.G.vcount())
+
+        def kineticFlow(t, dt, runoff, drainOverflows, theta=0.6, phi=0.6):
+            """
+            TODO: List assumptions. Uses mannings equation and continuity of mass to take the total inflow and write it as
+            a discharge considering the pipe shape.
+
+            Parameters:
+            -----------
+            t : float
+                the current time in the ode
+            x : list(float)
+                list of depths
+            theta : float
+                one of the two weights for numerical pde method
+            phi : float
+                one of the two weights for numerical pde method
+            """
+
+            # 1. check acyclic
+            if not self.G.is_dag():
+                raise ValueError("Street Network must be acyclic.")
+
+            # 2. top sort
+            order = self.G.topological_sorting()
+            # pprint(order)
+
+            for nid in order:
+                # 3. Get inflows
+                # skips any node without outgoing edges
+                if self.G.degree(nid, mode="out") == 0:
+                    continue
+                edge = self.G.vs[nid].out_edges()[0].index
+                Q1 = self.G.es[edge]["Q1"]
+                A1 = self.G.es[edge]["A1"]
+                Q2 = self.G.es[edge]["Q2"]
+                A2 = self.G.es[edge]["A2"]
+                Q1New = 0.0
+                A1New = 0.0
+                Q2New = 0.0
+                A2New = 0.0
+                slope = self.G.es[edge]["slope"]
+                Sx = self.G.es[edge]["Sx"]
+                n = self.G.es[edge]["n"]
+                drainLength = self.G.vs[nid]["drainLength"]
+                drainWidth = self.G.vs[nid]["drainWidth"]
+                beta = np.power(slope, 0.5) / self.G.es[edge]["n"]
+
+                # check if node has drain
+                if self.G.vs[nid]["drain"] == 0:
+                    drainOutflow = 0.0
+                # check if drain is overflowing
+                elif drainOverflows[nid] > 0.0:
+                    drainOutflow = drainOverflows[nid]
+                # flow water into drain
+                else:
+                    drainInflow[nid] = capturedFlow(
+                        Q1, A1, slope, Sx, drainLength, drainWidth, n
+                    )
+                    drainOutflow = -1 * drainInflow[nid]
+                # pprint(f"Drain Outflow for {nid}: {drainOutflow}")
+                # get Q2 of incoming edges
+                incomingQs = 0.0
+                for e in self.G.vs[nid].in_edges():
+                    incomingQs += e["Q2"]
+                # pprint(f"Incoming Qs: {incomingQs}")
+
+                Q1New = drainOutflow + runoff[nid] + incomingQs
+
+                Amax = A_tbl[-1]
+
+                # pprint(f"A_tbl: {A_tbl}")
+                # pprint(f"A_tbl[-1]: {A_tbl[-1]}")
+                # pprint(f"A_tbl[0]: {A_tbl[0]}")
+                # pprint(f"Amax: {Amax}")
+                def phiInverse(x, p):
+                    f = (
+                        psiFromAreaStreet(
+                            (p["Q1New"] / p["n"]), p["A_tbl"], p["R_tbl"], p["yFull"]
+                        )
+                        - x
+                    )
+                    fp = psiPrimeFromAreaStreet(
+                        (p["Q1New"] / p["n"]), p["A_tbl"], p["R_tbl"], p["yFull"]
+                    )
+                    return f, fp
+
+                p = {
+                    "Q1New": Q1New,
+                    "n": self.G.es[edge]["n"],
+                    "A_tbl": A_tbl,
+                    "R_tbl": R_tbl,
+                    "yFull": self.yFull,
+                }
+                A1New, _ = newtonBisection(1e-16, Amax, phiInverse, p=p)
+                # pprint(f"A1New From Bisection: {A1New}")
+
+                c1 = (drainLength * theta) / (dt * phi)
+
+                c2 = (
+                    c1 * ((1 - theta) * (A1New - A1) - theta * A2)
+                    + ((1 - phi) / phi) * (Q2 - Q1)
+                    - Q1New
+                )
+
+                def A2NewFunction(x, p):
+                    f = (
+                        beta * psiFromAreaStreet(x, p["A_tbl"], p["R_tbl"], p["yFull"])
+                        + c1 * x
+                        + c2
+                    )
+                    fp = (
+                        beta
+                        * psiPrimeFromAreaStreet(x, p["A_tbl"], p["R_tbl"], p["yFull"])
+                        + c1
+                    )
+                    return f, fp
+
+                p = {
+                    "beta": beta,
+                    "c1": c1,
+                    "c2": c2,
+                    "A_tbl": A_tbl,
+                    "R_tbl": R_tbl,
+                    "yFull": self.yFull,
+                }
+                A2New, _ = newtonBisection(1e-16, Amax, A2NewFunction, p=p, xinit=A2)
+                # A2New, _ = newtonBisection(0, Amax, A2NewFunction, tol=Amax*0.0001, p=p, xinit=A2)
+
+                Q2New = beta * psiFromAreaStreet(A2New, A_tbl, R_tbl, self.yFull)
+                # TODO: Do depth after all areas computed
+                # d1New = depthFromAreaStreet(A2New)
+                # d2New = depthFromAreaStreet(A2New)
+
+                pprint(f" A1: {A1}")
+                pprint(f" A2: {A2}")
+                pprint(f" Q1: {Q1}")
+                pprint(f" Q2: {Q2}")
+                pprint(f" A1New: {A1New}")
+                pprint(f" A2New: {A2New}")
+                pprint(f" Q1New: {Q1New}")
+                pprint(f" Q2New: {Q2New}")
+
+                self.G.es[edge]["Q1New"] = Q1New
+                self.G.es[edge]["A1New"] = A1New
+                self.G.es[edge]["Q2New"] = Q2New
+                self.G.es[edge]["A2New"] = A2New
+
+                # pprint(self.G.vs[nid].in_edges())
+            # Update A,Q's
+            self.G.es["A1"] = np.nan_to_num(self.G.es["A1New"])
+            self.G.es["A2"] = np.nan_to_num(self.G.es["A2New"])
+            self.G.es["Q1"] = np.nan_to_num(self.G.es["Q1New"])
+            self.G.es["Q2"] = np.nan_to_num(self.G.es["Q2New"])
+            peakDischarge = np.max(np.abs(self.G.es["Q1"] + self.G.es["Q2"]))
+            # compute depth's
+            for nid in order:
+                maxDepth = 0.0
+                for edge in self.G.vs[nid].out_edges():
+                    tempDepth = depthFromAreaStreet(edge["A1"], A_tbl, self.yFull)
+                    if tempDepth > maxDepth:
+                        maxDepth = tempDepth
+                for edge in self.G.vs[nid].in_edges():
+                    tempDepth = depthFromAreaStreet(edge["A2"], A_tbl, self.yFull)
+                    if tempDepth > maxDepth:
+                        maxDepth = tempDepth
+                if self.G.vs[nid]["depth"] > self.yFull:
+                    pprint(
+                        f"WARNING: Node {nid} lost {self.G.vs[nid]['depth'] - self.yFull} due to overflow. Forcing depth to yFull."
+                    )
+                    self.G.vs[nid]["depth"] = self.yFull
+                else:
+                    self.G.vs[nid]["depth"] = maxDepth
+
+        kineticFlow(t, dt, runoff, drainOverflows)
+        # TODO: Add more reporting things here
+        averageArea = np.divide(self.G.es["A1"] + self.G.es["A2"], 2.0)
+
+        outfallNode = self.G.vs.select(type_eq=1)[0]
+        lastEdge = outfallNode.in_edges()[0]
+        pprint(f"Outfall Flow: {self.G.es[lastEdge.index]['Q2New']}")
+        peakDischarge = self.G.es[lastEdge.index]["Q2New"]
+        # pprint(f"Average Area: {averageArea}")
+        # pprint(f"New Depth:{self.G.vs['depth']}")
+        return self.G.vs["depth"], averageArea, drainInflow, peakDischarge

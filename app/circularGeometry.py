@@ -15,8 +15,9 @@ from . import A_tbl, R_tbl, STREET_Y_FULL, STREET_LANE_SLOPE
 CIRCLE_N = 51
 
 
-def _angleFromArea(A, Yfull):
+def _angleFromArea(A, p):
     """computes the central angle by cross sectional flow area. A = A_{full} (theta - sin theta) / 2 pi"""
+    Yfull = p["yFull"]
     Afull = 0.7854 * Yfull * Yfull
     Aratio = np.divide(A, Afull)
     # This is an initial guess from the pdf
@@ -30,8 +31,9 @@ def _angleFromArea(A, Yfull):
     return theta
 
 
-def depthFromAreaCircle(A, Yfull):
+def depthFromAreaCircle(A, p):
     """Get depth from cross sectional area."""
+    Yfull = p["yFull"]
     Afull = 0.7854 * Yfull * Yfull
     Aratio = A / Afull
     if A < 0.04 * Afull:
@@ -42,8 +44,9 @@ def depthFromAreaCircle(A, Yfull):
     return depth
 
 
-def psiFromAreaCircle(A, Yfull):
+def psiFromAreaCircle(A, p):
     """Section Factor (Psi = A * R(A)^2/3) from cross sectional area."""
+    Yfull = p["yFull"]
     Afull = 0.7854 * Yfull * Yfull
     Rfull = 0.25 * Yfull
     PsiFull = Afull * np.power(Rfull, 2 / 3)
@@ -59,8 +62,9 @@ def psiFromAreaCircle(A, Yfull):
     return psi
 
 
-def areaFromPsiCircle(Psi, Yfull):
+def areaFromPsiCircle(Psi, p):
     """Reverse search for area from psi."""
+    Yfull = p["yFull"]
     Afull = 0.7854 * Yfull * Yfull
     Rfull = 0.25 * Yfull
     PsiFull = Afull * np.power(Rfull, 2 / 3)
@@ -68,8 +72,9 @@ def areaFromPsiCircle(Psi, Yfull):
     return A
 
 
-def psiPrimeFromAreaCircle(A, Yfull):
+def psiPrimeFromAreaCircle(A, p):
     """Section Factor (Psi = A * R(A)^2/3) from cross sectional area."""
+    Yfull = p["yFull"]
     Afull = 0.7854 * Yfull * Yfull
     Rfull = 0.25 * Yfull
     PsiFull = Afull * np.power(Rfull, 2 / 3)
@@ -92,8 +97,9 @@ def psiPrimeFromAreaCircle(A, Yfull):
     return psiPrime
 
 
-def hydraulicRadiusFromAreaCircle(A, Yfull):
+def hydraulicRadiusFromAreaCircle(A, p):
     """Get HydraulicRadius from area."""
+    Yfull = p["yFull"]
     Afull = 0.7854 * Yfull * Yfull
     Rfull = 0.25 * Yfull
     PsiFull = Afull * np.power(Rfull, 2 / 3)
@@ -108,8 +114,9 @@ def hydraulicRadiusFromAreaCircle(A, Yfull):
     return r
 
 
-def plotCircleFunctions(diam):
+def plotCircleFunctions(p):
     "Creates plots to show Geometric Functions in terms of cross sectional area."
+    diam = p["yFull"]
     Afull = 0.7854 * diam * diam
     res = 1000  # plot resolution
     As = np.linspace(0, 1, res)
