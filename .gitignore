@@ -1,4 +1,5 @@
 app/fortran
 app/__pycache__
+tests/__pycache__
 .direnv/
 poetry.lock
