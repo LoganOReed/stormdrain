@@ -43,7 +43,7 @@ class TestCircularGeometry:
         Afull = 0.7854 * Yfull * Yfull
         theta = _angleFromArea(Afull, pipe_params)
         # Full pipe should have theta = 2*pi
-        assert theta == approx(2*np.pi, abs=1e-3)
+        assert theta == approx(2 * np.pi, abs=1e-3)
         # assert np.isclose(theta, 2 * np.pi, atol=1e-5)
 
     def test_angle_from_area_half_full(self, pipe_params):
@@ -177,7 +177,7 @@ class TestCircularGeometry:
         PsiFull = Afull * np.power(Rfull, 2 / 3)
 
         psi = psiFromAreaCircle(Afull, pipe_params)
-        assert psi == approx(PsiFull,rel=1e-2)
+        assert psi == approx(PsiFull, rel=1e-2)
         # assert np.isclose(psi, PsiFull, rtol=0.01)
 
     def test_psi_monotonicity(self, pipe_params):
@@ -220,7 +220,7 @@ class TestCircularGeometry:
         psi_above = psiFromAreaCircle(A_above, pipe_params)
 
         assert psi_below < psi_above
-        assert psi_below == approx(psi_above,rel=0.1)
+        assert psi_below == approx(psi_above, rel=0.1)
         # assert np.isclose(psi_below, psi_above, rtol=0.1)
 
     # Tests for areaFromPsiCircle (inverse function)
@@ -267,11 +267,11 @@ class TestCircularGeometry:
         """Test that psi prime is positive for all valid areas."""
         Yfull = pipe_params["yFull"]
         Afull = 0.7854 * Yfull * Yfull
-        areas = np.linspace(0.01 * Afull, (AMAX-0.01) * Afull, 20)
+        areas = np.linspace(0.01 * Afull, (AMAX - 0.01) * Afull, 20)
 
         for A in areas:
             psiPrime = psiPrimeFromAreaCircle(A, pipe_params)
-            assert psiPrime > 0, f"psi prime not positive for A/Afull={A/Afull}"
+            assert psiPrime > 0, f"psi prime not positive for A/Afull={A / Afull}"
 
     def test_psi_prime_small_area_branch(self, pipe_params):
         """Test psi prime calculation for small area (< 4% full)."""
@@ -355,7 +355,7 @@ class TestCircularGeometry:
 
         # All relative depths should be very similar
         for i in range(len(relative_depths) - 1):
-            assert relative_depths[i] == approx(relative_depths[i+1], rel=0.01)
+            assert relative_depths[i] == approx(relative_depths[i + 1], rel=0.01)
             # assert np.isclose(relative_depths[i], relative_depths[i + 1], rtol=0.01)
 
     def test_numerical_stability_extreme_values(self, pipe_params):

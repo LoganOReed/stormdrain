@@ -17,13 +17,14 @@ CIRCLE_N = 51
 # area ratio for max flow
 AMAX = 0.9756
 
+
 def getThetaOfAlpha(alpha):
     """
     Calculate theta angle from normalized area alpha using iterative method
-    
+
     Args:
         alpha: Normalized area (a/aFull)
-    
+
     Returns:
         theta: Central angle in radians
     """
@@ -32,35 +33,36 @@ def getThetaOfAlpha(alpha):
         theta = 1.2 + 5.08 * (alpha - 0.04) / 0.96
     else:
         theta = 0.031715 - 12.79384 * alpha + 8.28479 * math.sqrt(alpha)
-    
+
     theta1 = theta  # Store initial guess
     ap = (2.0 * math.pi) * alpha
-    
+
     # Newton-Raphson iteration (max 40 iterations)
     for k in range(1, 41):
         # Calculate correction term
         d = -(ap - theta + math.sin(theta)) / (1.0 - math.cos(theta))
-        
+
         # Modification to improve convergence for large theta
         if d > 1.0:
             d = math.copysign(1.0, d)  # Apply sign of d to 1.0
-        
+
         theta = theta - d
-        
+
         # Check for convergence
         if abs(d) <= 0.0001:
             return theta
-    
+
     # If didn't converge, return initial guess
     return theta1
+
 
 def getYcircular(alpha):
     """
     Calculate normalized depth Y from normalized area alpha for circular cross-section
-    
+
     Args:
         alpha: Normalized area (a/aFull)
-    
+
     Returns:
         Normalized depth (y/yFull)
     """
@@ -68,23 +70,24 @@ def getYcircular(alpha):
         return 1.0
     if alpha <= 0.0:
         return 0.0
-    
+
     # For very small alpha, use approximate formula
     if alpha <= 1.0e-5:
-        theta = (37.6911 * alpha) ** (1.0/3.0)  # Cube root
+        theta = (37.6911 * alpha) ** (1.0 / 3.0)  # Cube root
         return theta * theta / 16.0
-    
+
     # For larger alpha, use theta-based calculation
     theta = getThetaOfAlpha(alpha)
     return (1.0 - math.cos(theta / 2.0)) / 2.0
 
+
 def getScircular(alpha):
     """
     Calculate normalized hydraulic parameter S from normalized area alpha for circular cross-section
-    
+
     Args:
         alpha: Normalized area (a/aFull)
-    
+
     Returns:
         Normalized S parameter (s/sFull)
     """
@@ -92,23 +95,28 @@ def getScircular(alpha):
         return 1.0
     if alpha <= 0.0:
         return 0.0
-    
+
     # For very small alpha, use approximate formula
     if alpha <= 1.0e-5:
-        theta = pow(37.6911 * alpha, 1.0/3.0)
-        return pow(theta, 13.0/3.0) / 124.4797
-    
+        theta = pow(37.6911 * alpha, 1.0 / 3.0)
+        return pow(theta, 13.0 / 3.0) / 124.4797
+
     # For larger alpha, use theta-based calculation
     theta = getThetaOfAlpha(alpha)
-    return pow((theta - math.sin(theta)), 5.0/3.0) / (2.0 * math.pi) / pow(theta, 2.0/3.0)
+    return (
+        pow((theta - math.sin(theta)), 5.0 / 3.0)
+        / (2.0 * math.pi)
+        / pow(theta, 2.0 / 3.0)
+    )
+
 
 def getAcircular(psi):
     """
     Calculate normalized area alpha from normalized parameter psi for circular cross-section
-    
+
     Args:
         psi: Normalized hydraulic parameter (s/sFull)
-    
+
     Returns:
         Normalized area (a/aFull)
     """
@@ -116,23 +124,24 @@ def getAcircular(psi):
         return 1.0
     if psi <= 0.0:
         return 0.0
-    
+
     # For very small psi, use approximate formula
     if psi <= 1.0e-6:
-        theta = pow(124.4797 * psi, 3.0/13.0)
+        theta = pow(124.4797 * psi, 3.0 / 13.0)
         return theta * theta * theta / 37.6911
-    
+
     # For larger psi, use theta-based calculation
     theta = getThetaOfPsi(psi)
     return (theta - math.sin(theta)) / (2.0 * math.pi)
 
+
 def getThetaOfPsi(psi):
     """
     Calculate theta angle from normalized parameter psi using iterative method
-    
+
     Args:
         psi: Normalized hydraulic parameter (s/sFull)
-    
+
     Returns:
         theta: Central angle in radians
     """
@@ -145,33 +154,34 @@ def getThetaOfPsi(psi):
         theta = 1.2 + 1.94 * (psi - 0.015) / 0.485
     else:
         theta = 0.12103 - 55.5075 * psi + 15.62254 * math.sqrt(psi)
-    
+
     theta1 = theta  # Store initial guess
     ap = (2.0 * math.pi) * psi
-    
+
     # Newton-Raphson iteration (max 40 iterations)
     for k in range(1, 41):
         theta = abs(theta)
         tt = theta - math.sin(theta)
-        tt23 = pow(tt, 2.0/3.0)
-        t3 = pow(theta, 1.0/3.0)
+        tt23 = pow(tt, 2.0 / 3.0)
+        t3 = pow(theta, 1.0 / 3.0)
         d = ap * theta / t3 - tt * tt23
-        d = d / (ap * (2.0/3.0) / t3 - (5.0/3.0) * tt23 * (1.0 - math.cos(theta)))
+        d = d / (ap * (2.0 / 3.0) / t3 - (5.0 / 3.0) * tt23 * (1.0 - math.cos(theta)))
         theta = theta - d
-        
+
         # Check for convergence
         if abs(d) <= 0.0001:
             return theta
-    
+
     # If didn't converge, return initial guess
     return theta1
+
 
 def _angleFromArea(A, p):
     """computes the central angle by cross sectional flow area. A = A_{full} (theta - sin theta) / 2 pi"""
     Yfull = p["yFull"]
     Afull = 0.7854 * Yfull * Yfull
     Aratio = np.divide(A, Afull)
-    theta = getThetaOfAlpha(A/Afull)
+    theta = getThetaOfAlpha(A / Afull)
 
     # # This is an initial guess from the pdf
     # theta = 0.031715 - 12.79384 * Aratio + 8.28479 * np.power(Aratio, 0.5)
@@ -207,7 +217,7 @@ def psiFromAreaCircle(A, p):
     PsiFull = Afull * np.power(Rfull, 2 / 3)
     Aratio = A / Afull
 
-    psi = getScircular(Aratio)*PsiFull
+    psi = getScircular(Aratio) * PsiFull
 
     # if A < 0.04 * Afull:
     #     theta = _angleFromArea(A, Yfull)
@@ -229,7 +239,7 @@ def areaFromPsiCircle(Psi, p):
         return 0.0
     elif PsiFull >= 1.0:
         return Afull
-    A = getAcircular(Psi/PsiFull) * Afull
+    A = getAcircular(Psi / PsiFull) * Afull
     # A = getThetaOfPsi
     # A = np.interp(Psi / PsiFull, circleTable["P"], circleTable["A"]) * Afull
     return A
@@ -245,12 +255,12 @@ def psiPrimeFromAreaCircle(A, p):
 
     if Aratio <= 1e-30:
         return 1e-30
-    
+
     theta = getThetaOfAlpha(Aratio)
-    p = theta*Yfull / 2.0
+    p = theta * Yfull / 2.0
     r = A / p
     dPdA = 4.0 / (Yfull * (1.0 - np.cos(theta)))
-    psiPrime = ((5.0/3.0) - (2.0/3.0) * dPdA * r) * np.power(r,2.0/3.0)
+    psiPrime = ((5.0 / 3.0) - (2.0 / 3.0) * dPdA * r) * np.power(r, 2.0 / 3.0)
 
     # if A < 0.04 * Afull:
     #     theta = _angleFromArea(A, Yfull)
@@ -314,7 +324,7 @@ def plotCircleFunctions(p):
     plt.grid(True)
     plt.xlabel("A/A_full")
     # plt.ylabel("Y/Yfull")
-    plt.ylim(-0.5,1.5)
+    plt.ylim(-0.5, 1.5)
     plt.title("Circular Geometry from Cross Sectional Area")
 
     plt.savefig(f"figures/circularGeometry.png")
@@ -325,4 +335,4 @@ if __name__ == "__main__":
     pprint(
         "Don't call this directly. Or, if you want the geometry plots uncomment the code."
     )
-    plotCircleFunctions({"yFull":0.5})
+    plotCircleFunctions({"yFull": 0.5})

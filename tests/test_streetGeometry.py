@@ -78,11 +78,11 @@ class TestStreetGeometry:
         # Test at 50% of below crown area
         A_test = 0.5 * area_boundaries["belowCrown"]
         depth = depthFromAreaStreet(A_test, ps)
-        
+
         # Verify depth is positive and reasonable
         assert depth > 0
         assert depth < ps["Sx"] * ps["T_crown"]
-        
+
         # Verify depth calculation formula
         expected_depth = np.sqrt(2 * ps["Sx"] * A_test)
         assert depth == approx(expected_depth, rel=1e-6)
@@ -92,7 +92,7 @@ class TestStreetGeometry:
         ps = street_params
         A_crown = area_boundaries["belowCrown"]
         depth = depthFromAreaStreet(A_crown, ps)
-        
+
         # Depth should equal crown height
         expected_crown_depth = ps["Sx"] * ps["T_crown"]
         assert depth == approx(expected_crown_depth, rel=1e-3)
@@ -104,9 +104,9 @@ class TestStreetGeometry:
         A_below = area_boundaries["belowCrown"]
         A_upper = area_boundaries["betweenCrownAndCurb"]
         A_test = 0.5 * (A_below + A_upper)
-        
+
         depth = depthFromAreaStreet(A_test, ps)
-        
+
         # Depth should be between crown height and curb height
         assert ps["Sx"] * ps["T_crown"] < depth < ps["H_curb"]
 
@@ -115,7 +115,7 @@ class TestStreetGeometry:
         ps = street_params
         A_curb = area_boundaries["betweenCrownAndCurb"]
         depth = depthFromAreaStreet(A_curb, ps)
-        
+
         # Depth should equal curb height
         assert depth == approx(ps["H_curb"], rel=1e-3)
 
@@ -126,9 +126,9 @@ class TestStreetGeometry:
         A_curb = area_boundaries["betweenCrownAndCurb"]
         A_max = area_boundaries["onSidewalk"]
         A_test = 0.5 * (A_curb + A_max)
-        
+
         depth = depthFromAreaStreet(A_test, ps)
-        
+
         # Depth should be above curb height
         assert depth > ps["H_curb"]
 
@@ -137,7 +137,7 @@ class TestStreetGeometry:
         A_max = area_boundaries["onSidewalk"]
         areas = np.linspace(0.01 * A_max, 0.99 * A_max, 30)
         depths = [depthFromAreaStreet(A, street_params) for A in areas]
-        
+
         # Check monotonicity
         for i in range(len(depths) - 1):
             assert depths[i] < depths[i + 1] + 4e-2, f"Depth not monotonic at index {i}"
@@ -146,13 +146,13 @@ class TestStreetGeometry:
         """Test that depth is continuous at region boundaries."""
         ps = street_params
         epsilon = 1e-6
-        
+
         # Test continuity at crown boundary
         A_crown = area_boundaries["belowCrown"]
         depth_below = depthFromAreaStreet(A_crown - epsilon, ps)
         depth_above = depthFromAreaStreet(A_crown + epsilon, ps)
         assert depth_below == approx(depth_above, rel=1e-2)
-        
+
         # Test continuity at curb boundary
         A_curb = area_boundaries["betweenCrownAndCurb"]
         depth_below = depthFromAreaStreet(A_curb - epsilon, ps)
@@ -163,19 +163,19 @@ class TestStreetGeometry:
         """Test depth calculation for different street sizes."""
         # Calculate relative area for both streets
         A_ratio = 0.5
-        
+
         # Standard street
         ps1 = street_params
         A_max1 = 0.5 * ps1["T_crown"] * ps1["Sx"] * ps1["T_crown"]
         A_max1 += ps1["T_crown"] * (ps1["H_curb"] - ps1["Sx"] * ps1["T_crown"])
         depth1 = depthFromAreaStreet(A_ratio * A_max1, ps1)
-        
+
         # Wide street
         ps2 = wide_street_params
         A_max2 = 0.5 * ps2["T_crown"] * ps2["Sx"] * ps2["T_crown"]
         A_max2 += ps2["T_crown"] * (ps2["H_curb"] - ps2["Sx"] * ps2["T_crown"])
         depth2 = depthFromAreaStreet(A_ratio * A_max2, ps2)
-        
+
         # Both should be positive
         assert depth1 > 0
         assert depth2 > 0
@@ -191,10 +191,10 @@ class TestStreetGeometry:
         ps = street_params
         A_test = 0.5 * area_boundaries["belowCrown"]
         psi = psiFromAreaStreet(A_test, ps)
-        
+
         # Verify psi is positive
         assert psi > 0
-        
+
         # Verify psi calculation formula
         c = np.sqrt(2 * ps["Sx"]) * (1 + np.sqrt(1 + np.power(ps["Sx"], -2)))
         expected_psi = np.power(A_test, 4 / 3) * np.power(c, -2 / 3)
@@ -206,9 +206,9 @@ class TestStreetGeometry:
         A_below = area_boundaries["belowCrown"]
         A_upper = area_boundaries["betweenCrownAndCurb"]
         A_test = 0.5 * (A_below + A_upper)
-        
+
         psi = psiFromAreaStreet(A_test, ps)
-        
+
         # Verify psi is positive
         assert psi > 0
 
@@ -218,12 +218,12 @@ class TestStreetGeometry:
         A_curb = area_boundaries["betweenCrownAndCurb"]
         A_max = area_boundaries["onSidewalk"]
         A_test = 0.5 * (A_curb + A_max)
-        
+
         psi = psiFromAreaStreet(A_test, ps)
-        
+
         # Verify psi is positive
         assert psi > 0
-        
+
         # Verify psi calculation formula for sidewalk region
         pStreet = (
             ps["Sx"] * ps["T_crown"] * np.sqrt(np.power(ps["Sx"], -1) + 1)
@@ -237,22 +237,24 @@ class TestStreetGeometry:
         A_max = area_boundaries["onSidewalk"]
         areas = np.linspace(0.01 * A_max, 0.99 * A_max, 30)
         psis = [psiFromAreaStreet(A, street_params) for A in areas]
-        
+
         # Check monotonicity
         for i in range(len(psis) - 1):
-            assert psis[i] < psis[i + 1] + 5e-2, f"Psi not monotonic at index {i}, areas before: {areas[i]}, after: {areas[i+1]}"
+            assert psis[i] < psis[i + 1] + 5e-2, (
+                f"Psi not monotonic at index {i}, areas before: {areas[i]}, after: {areas[i + 1]}"
+            )
 
     def test_psi_continuity_at_boundaries(self, street_params, area_boundaries):
         """Test that psi is continuous at region boundaries."""
         ps = street_params
         epsilon = 1e-6
-        
+
         # Test continuity at crown boundary
         A_crown = area_boundaries["belowCrown"]
         psi_below = psiFromAreaStreet(A_crown - epsilon, ps)
         psi_above = psiFromAreaStreet(A_crown + epsilon, ps)
         assert psi_below == approx(psi_above, abs=5e-2)
-        
+
         # Test continuity at curb boundary
         A_curb = area_boundaries["betweenCrownAndCurb"]
         psi_below = psiFromAreaStreet(A_curb - epsilon, ps)
@@ -264,7 +266,7 @@ class TestStreetGeometry:
         """Test that psi prime is positive for all valid areas."""
         A_max = area_boundaries["onSidewalk"]
         areas = np.linspace(0.01 * A_max, 0.99 * A_max, 30)
-        
+
         for A in areas:
             psiPrime = psiPrimeFromAreaStreet(A, street_params)
             assert psiPrime > 0, f"psi prime not positive for A={A}"
@@ -274,10 +276,10 @@ class TestStreetGeometry:
         ps = street_params
         A_test = 0.5 * area_boundaries["belowCrown"]
         psiPrime = psiPrimeFromAreaStreet(A_test, ps)
-        
+
         # Verify psi prime is positive
         assert psiPrime > 0
-        
+
         # Verify formula
         c = np.sqrt(2 * ps["Sx"]) * (1 + np.sqrt(1 + np.power(ps["Sx"], -2)))
         expected_psiPrime = (4 / 3) * np.power(A_test, 1 / 3) * np.power(c, -2 / 3)
@@ -289,9 +291,9 @@ class TestStreetGeometry:
         A_below = area_boundaries["belowCrown"]
         A_upper = area_boundaries["betweenCrownAndCurb"]
         A_test = 0.5 * (A_below + A_upper)
-        
+
         psiPrime = psiPrimeFromAreaStreet(A_test, ps)
-        
+
         # Verify psi prime is positive
         assert psiPrime > 0
 
@@ -301,12 +303,12 @@ class TestStreetGeometry:
         A_curb = area_boundaries["betweenCrownAndCurb"]
         A_max = area_boundaries["onSidewalk"]
         A_test = 0.5 * (A_curb + A_max)
-        
+
         psiPrime = psiPrimeFromAreaStreet(A_test, ps)
-        
+
         # Verify psi prime is positive
         assert psiPrime > 0
-        
+
         # Verify formula for sidewalk region
         pStreet = (
             ps["Sx"] * ps["T_crown"] * np.sqrt(np.power(ps["Sx"], -1) + 1)
@@ -320,13 +322,13 @@ class TestStreetGeometry:
         A_max = area_boundaries["onSidewalk"]
         A = 0.5 * A_max
         delta_A = 0.001 * A_max
-        
+
         psi1 = psiFromAreaStreet(A, street_params)
         psi2 = psiFromAreaStreet(A + delta_A, street_params)
         numerical_derivative = (psi2 - psi1) / delta_A
-        
+
         psiPrime = psiPrimeFromAreaStreet(A, street_params)
-        
+
         # Should be roughly equal
         assert psiPrime == approx(numerical_derivative, rel=0.1)
 
@@ -334,14 +336,14 @@ class TestStreetGeometry:
         """Test that psi prime has reasonable continuity at boundaries."""
         ps = street_params
         epsilon = 1e-5
-        
+
         # Test at crown boundary
         A_crown = area_boundaries["belowCrown"]
         psiPrime_below = psiPrimeFromAreaStreet(A_crown - epsilon, ps)
         psiPrime_above = psiPrimeFromAreaStreet(A_crown + epsilon, ps)
         # Should be same order of magnitude
         assert 0.1 < psiPrime_below / psiPrime_above < 10
-        
+
         # Test at curb boundary
         A_curb = area_boundaries["betweenCrownAndCurb"]
         psiPrime_below = psiPrimeFromAreaStreet(A_curb - epsilon, ps)
@@ -354,12 +356,12 @@ class TestStreetGeometry:
         """Test that all geometric functions are consistent with each other."""
         A_max = area_boundaries["onSidewalk"]
         A_test = 0.6 * A_max
-        
+
         # Get all geometric properties
         depth = depthFromAreaStreet(A_test, street_params)
         psi = psiFromAreaStreet(A_test, street_params)
         psi_prime = psiPrimeFromAreaStreet(A_test, street_params)
-        
+
         # All should be positive
         assert depth > 0
         assert psi > 0
@@ -372,19 +374,20 @@ class TestStreetGeometry:
         betweenCrownAndCurbArea = belowCrownArea + (
             ps["T_crown"] * (ps["H_curb"] - ps["Sx"] * ps["T_crown"])
         )
-        
+
         # Test in each region
         areas = [
             0.5 * belowCrownArea,  # Below crown
-            belowCrownArea + 0.5 * (betweenCrownAndCurbArea - belowCrownArea),  # Between
+            belowCrownArea
+            + 0.5 * (betweenCrownAndCurbArea - belowCrownArea),  # Between
             betweenCrownAndCurbArea + 0.01,  # On sidewalk
         ]
-        
+
         for A in areas:
             depth = depthFromAreaStreet(A, ps)
             psi = psiFromAreaStreet(A, ps)
             psi_prime = psiPrimeFromAreaStreet(A, ps)
-            
+
             assert depth > 0
             assert psi > 0
             assert psi_prime > 0
@@ -392,11 +395,11 @@ class TestStreetGeometry:
     def test_numerical_stability_small_areas(self, street_params):
         """Test numerical stability with very small areas."""
         A_tiny = 1e-8
-        
+
         depth = depthFromAreaStreet(A_tiny, street_params)
         psi = psiFromAreaStreet(A_tiny, street_params)
         psi_prime = psiPrimeFromAreaStreet(A_tiny, street_params)
-        
+
         assert np.isfinite(depth)
         assert np.isfinite(psi)
         assert np.isfinite(psi_prime)
@@ -408,15 +411,15 @@ class TestStreetGeometry:
         """Comprehensive test of all functions at various areas."""
         A_max = area_boundaries["onSidewalk"]
         area_ratios = [0.1, 0.25, 0.5, 0.75, 0.9]
-        
+
         for ratio in area_ratios:
             A = ratio * A_max
-            
+
             # All functions should complete without error
             depth = depthFromAreaStreet(A, street_params)
             psi = psiFromAreaStreet(A, street_params)
             psi_prime = psiPrimeFromAreaStreet(A, street_params)
-            
+
             # Basic sanity checks
             assert depth > 0
             assert psi > 0
@@ -425,13 +428,13 @@ class TestStreetGeometry:
     def test_depth_matches_expected_at_key_points(self, street_params):
         """Test depth matches expected values at key geometric points."""
         ps = street_params
-        
+
         # At crown (end of first region)
         A_crown = 0.5 * ps["T_crown"] * ps["Sx"] * ps["T_crown"]
         depth_crown = depthFromAreaStreet(A_crown, ps)
         expected_crown_depth = ps["Sx"] * ps["T_crown"]
         assert depth_crown == approx(expected_crown_depth, rel=1e-3)
-        
+
         # At curb (end of second region)
         A_curb = A_crown + ps["T_crown"] * (ps["H_curb"] - ps["Sx"] * ps["T_crown"])
         depth_curb = depthFromAreaStreet(A_curb, ps)
@@ -442,9 +445,15 @@ class TestStreetGeometry:
         test_params = [
             {"T_curb": 2.4, "T_crown": 4.5, "H_curb": 0.15, "S_back": 0.02, "Sx": 0.02},
             {"T_curb": 3.0, "T_crown": 6.0, "H_curb": 0.20, "S_back": 0.03, "Sx": 0.03},
-            {"T_curb": 2.0, "T_crown": 5.0, "H_curb": 0.10, "S_back": 0.015, "Sx": 0.015},
+            {
+                "T_curb": 2.0,
+                "T_crown": 5.0,
+                "H_curb": 0.10,
+                "S_back": 0.015,
+                "Sx": 0.015,
+            },
         ]
-        
+
         for ps in test_params:
             # Calculate a test area in the middle region
             belowCrownArea = 0.5 * ps["T_crown"] * ps["Sx"] * ps["T_crown"]
@@ -452,12 +461,12 @@ class TestStreetGeometry:
                 ps["T_crown"] * (ps["H_curb"] - ps["Sx"] * ps["T_crown"])
             )
             A_test = 0.5 * (belowCrownArea + betweenCrownAndCurbArea)
-            
+
             # All functions should work
             depth = depthFromAreaStreet(A_test, ps)
             psi = psiFromAreaStreet(A_test, ps)
             psi_prime = psiPrimeFromAreaStreet(A_test, ps)
-            
+
             assert depth > 0
             assert psi > 0
             assert psi_prime > 0
