@@ -1,275 +1,148 @@
 import numpy as np
 import scipy as sp
-from . import circleTable
-from pprint import pprint
 from sys import platform
 import matplotlib
 
 if platform == "linux":
     matplotlib.use("module://matplotlib-backend-kitty")
 import matplotlib.pyplot as plt
-
-from . import A_tbl, R_tbl, STREET_Y_FULL, STREET_LANE_SLOPE
-
-
-def depthFromAreaStreet(A, A_tbl, Y_full):
-    """
-    Calculate depth from area using a lookup table.
-
-    Parameters:
-    -----------
-    A : float
-        Area value to look up
-    A_tbl : array-like
-        Area lookup table (must have length 50 or 51)
-    Y_full : float
-        Full depth value
-
-    Returns:
-    --------
-    Y : float
-        Interpolated depth value
-    """
-    # Convert to numpy array and flatten to 1D row
-    At = np.array(A_tbl).flatten()
-    A_full = At[-1]
-    N = len(At)
-
-    if N != 51:
-        raise ValueError(f"A_tbl must have length 50 or 51 (got {N}).")
-
-    At_norm = At / A_full
-
-    # Edge cases
-    a = A / A_full
-    if a <= 0:
-        return 0.0
-    elif a >= 1:
-        return Y_full
-
-    # Bisection to find i with At[i] <= a <= At[i+1]
-    lo = 0  # Python uses 0-based indexing
-    hi = N - 1
-
-    while (hi - lo) > 1:
-        mid = (lo + hi) // 2
-        if a >= At_norm[mid]:
-            lo = mid
-        else:
-            hi = mid
-
-    i = lo
-    denom = At_norm[i + 1] - At_norm[i]
-
-    if denom <= 0:
-        frac = 0.0  # Avoid division by zero if plateau
-    else:
-        frac = (a - At_norm[i]) / denom
-
-    Y = (Y_full / (N - 1)) * (i + frac)
-
-    return Y
+from pprint import pprint
 
 
-def R_of_Y(Y, R_tbl, Y_full):
-    """
-    Calculate R value from Y (depth) using a lookup table.
+def depthFromAreaStreet(A, ps):
+    """Gets depth from cross sectional area. ps is street parameters"""
+    # Case 1, cross sectional area for depth below crown
+    # below crown
+    belowCrownArea = 0.5 * ps["T_crown"] * ps["Sx"] * ps["T_crown"]
+    # between crown and curb
+    betweenCrownAndCurbArea = belowCrownArea + (
+        ps["T_crown"] * (ps["H_curb"] - ps["Sx"] * ps["T_crown"])
+    )
+    # above curb
+    onSidewalkArea = (
+        betweenCrownAndCurbArea
+        + 0.5 * ps["T_curb"] * (ps["H_curb"] + ps["S_back"] * ps["T_curb"])
+        + ps["T_crown"] * (ps["S_back"] * ps["T_curb"])
+    )
 
-    Parameters:
-    -----------
-    Y : float
-        Depth value
-    R_tbl : array-like
-        R lookup table
-    Y_full : float
-        Full depth value
+    # water is below street crown
+    if A <= belowCrownArea:
+        d = np.sqrt(2 * ps["Sx"] * A)
+    # water is above crown but not curb
+    elif A > belowCrownArea and A <= betweenCrownAndCurbArea:
+        d = (A - belowCrownArea) / ps["T_crown"]
+        d = d + ps["Sx"] * ps["T_crown"]
+    # above curb but on sidewalk
+    elif A > betweenCrownAndCurbArea and A <= onSidewalkArea:
+        d = (A - betweenCrownAndCurbArea) / (ps["T_crown"] + ps["T_curb"])
+        d = d + ps["H_curb"]
+        # d = ()
 
-    Returns:
-    --------
-    RY : float
-        Interpolated R value
-    """
-    # Convert to numpy array and flatten to 1D row
-    Rt = np.array(R_tbl).flatten()
-    R_full = Rt[-1]
-    N = len(Rt)
-
-    # Clamp Y
-    Y = max(0, min(Y, Y_full))
-
-    # Edge cases
-    if Y <= 0:
-        RY = Rt[0]
-    elif Y >= Y_full:
-        RY = Rt[-1]
-    else:
-        # Integer portion
-        dy = Y_full / (N - 1)
-        k = int(np.floor(Y / dy))
-        Yk = k * dy
-
-        # Linear interpolation
-        Rk = Rt[k]
-        Rk1 = Rt[k + 1]
-        RY = Rk + (Y - Yk) * (Rk1 - Rk) / dy
-
-    RY = RY * R_full
-
-    return RY
+    return d
 
 
-def psiFromAreaStreet(A, A_tbl, R_tbl, Y_full):
-    """
-    Calculate section factor (Psi) from area using lookup tables.
+# NOTE: The slope of the curb is 0 to simplify the analytic solution in the last case
+def psiFromAreaStreet(A, ps):
+    belowCrownArea = 0.5 * ps["T_crown"] * ps["Sx"] * ps["T_crown"]
+    betweenCrownAndCurbArea = belowCrownArea + (
+        ps["T_crown"] * (ps["H_curb"] - ps["Sx"] * ps["T_crown"])
+    )
+    onSidewalkArea = (
+        betweenCrownAndCurbArea
+        + 0.5 * ps["T_curb"] * (ps["H_curb"] + ps["S_back"] * ps["T_curb"])
+        + ps["T_crown"] * (ps["S_back"] * ps["T_curb"])
+    )
 
-    Parameters:
-    -----------
-    A : float
-        Area value
-    A_tbl : array-like
-        Area lookup table
-    R_tbl : array-like
-        Hydraulic radius lookup table
-    Y_full : float
-        Full depth value
-
-    Returns:
-    --------
-    Psi : float
-        Section factor (A * R^(2/3))
-    """
-    # Convert to numpy arrays and flatten to 1D
-    At = np.array(A_tbl).flatten()
-    Rt = np.array(R_tbl).flatten()
-
-    # Depth from area
-    Y = depthFromAreaStreet(A, At, Y_full)
-
-    # Hydraulic radius at that depth
-    RY = R_of_Y(Y, Rt, Y_full)
-
-    # Section factor
-    Psi = A * (RY) ** (2 / 3)
-
-    if Psi < 0:
-        raise ValueError(f"Negative psifromareastreet: {A}")
-
-    return Psi
-
-
-def areaFromPsiStreet(Psi, A_tbl, R_tbl, Y_full):
-    """Reverse search for area from psi."""
-
-    def f(x):
-        return psiFromAreaStreet(x, A_tbl, R_tbl, Y_full) - Psi
-
-    if f(0.0) > 0 and f(A_tbl[-1]) > 0:
-        A = 0.0
-    elif f(0.0) < 0 and f(A_tbl[-1]) < 0:
-        A = A_tbl[-1]
-    else:
-        sol = sp.optimize.root_scalar(
-            f, method="brentq", bracket=(0.0, A_tbl[-1]), rtol=0.0001 * A_tbl[-1]
+    if A <= belowCrownArea:
+        c = np.sqrt(2 * ps["Sx"]) * (1 + np.sqrt(1 + np.power(ps["Sx"], -2)))
+        psi = np.power(A, 4 / 3) * np.power(c, -2 / 3)
+        psiPrime = (4 / 3) * np.power(A, 1 / 3) * np.power(c, -2 / 3)
+    elif A <= betweenCrownAndCurbArea:
+        k = 0.5 * ps["Sx"] * ps["T_crown"] * ps["T_crown"] + ps["T_crown"] * ps[
+            "T_crown"
+        ] * np.sqrt(1 + ps["Sx"] * ps["Sx"])
+        psi = (
+            np.power(ps["T_crown"], 2 / 3)
+            * np.power(A, 5 / 3)
+            * np.power(A + k, -2 / 3)
         )
-        A = sol.root
-        if sol.converged == False:
-            raise ValueError(f"ERROR: Brentq Failed to converge for psi {Psi}")
-    return A
+        psiPrime = (
+            (1 / 3)
+            * np.power(ps["T_crown"], 2 / 3)
+            * np.power(A, 2 / 3)
+            * np.power(A + k, -5 / 3)
+            * (3 * A + 5 * k)
+        )
+    else:
+        pStreet = (
+            ps["Sx"] * ps["T_crown"] * np.sqrt(np.power(ps["Sx"], -1) + 1)
+            + ps["H_curb"]
+        )
+        psi = A * A * np.power(pStreet + ps["T_curb"], -1)
+    return psi
 
 
-def psiPrimeFromAreaStreet(A, A_tbl, R_tbl, Y_full):
-    """
-    Calculate derivative of section factor (dPsi/dA) with respect to area
-    using numerical differentiation.
+def psiPrimeFromAreaStreet(A, ps):
+    belowCrownArea = 0.5 * ps["T_crown"] * ps["Sx"] * ps["T_crown"]
+    betweenCrownAndCurbArea = belowCrownArea + (
+        ps["T_crown"] * (ps["H_curb"] - ps["Sx"] * ps["T_crown"])
+    )
+    onSidewalkArea = (
+        betweenCrownAndCurbArea
+        + 0.5 * ps["T_curb"] * (ps["H_curb"] + ps["S_back"] * ps["T_curb"])
+        + ps["T_crown"] * (ps["S_back"] * ps["T_curb"])
+    )
 
-    Parameters:
-    -----------
-    A : float
-        Area value
-    A_tbl : array-like
-        Area lookup table
-    R_tbl : array-like
-        Hydraulic radius lookup table
-    Y_full : float
-        Full depth value
-
-    Returns:
-    --------
-    dPsi : float
-        Derivative of section factor with respect to area
-    """
-    # Convert to numpy arrays and flatten to 1D
-    At = np.array(A_tbl).flatten()
-    Rt = np.array(R_tbl).flatten()
-
-    # Full area and step size ΔA
-    A_full = At[-1]
-    dA = 0.0003048 * A_full
-    A = max(0, min(A, A_full))
-
-    # Handle edges: use one-sided diff
-    if A <= dA:
-        Psi_p = psiFromAreaStreet(A + dA, At, Rt, Y_full)
-        Psi_0 = psiFromAreaStreet(A, At, Rt, Y_full)
-        dPsi = (Psi_p - Psi_0) / dA
-        return dPsi
-    elif A >= A_full - dA:
-        Psi_0 = psiFromAreaStreet(A, At, Rt, Y_full)
-        Psi_m = psiFromAreaStreet(A - dA, At, Rt, Y_full)
-        dPsi = (Psi_0 - Psi_m) / dA
-        return dPsi
-
-    # Central difference in the interior
-    Psi_p = psiFromAreaStreet(A + dA, At, Rt, Y_full)
-    Psi_m = psiFromAreaStreet(A - dA, At, Rt, Y_full)
-    dPsi = (Psi_p - Psi_m) / (2 * dA)
-
-    return dPsi
-
-
-def plotStreetFunctions(diam):
-    "Creates plots to show Geometric Functions in terms of cross sectional area."
-    Afull = A_tbl[-1]
-    res = 1000  # plot resolution
-    As = np.linspace(0, 1, res)
-    Ys = [depthFromAreaStreet(a * Afull, A_tbl, diam) / diam for a in As]
-
-    # Get PsiFull
-
-    Rfull = 0.25 * diam
-    PsiFull = Afull * np.power(Rfull, 2 / 3)
-    # TODO: Change or remove this
-    PsiPrimeFull = 1
-
-    Psis = [psiFromAreaStreet(a * Afull, A_tbl, R_tbl, diam) for a in As]
-    PsiFull = max(Psis)
-    Psis = np.array(Psis) / PsiFull
-    # Here incase they ask about hydraulicRadius
-    Hs = [
-        R_of_Y(a * Afull, R_tbl, depthFromAreaStreet(a * Afull, A_tbl, diam))
-        / R_tbl[-1]
-        for a in As
-    ]
-    PsiPrimes = [
-        psiPrimeFromAreaStreet(a * Afull, A_tbl, R_tbl, diam) / PsiPrimeFull for a in As
-    ]
-
-    plt.plot(As, Ys, label="d / d_full", color="blue")
-    plt.plot(As, Psis, label="Psi / Psi_full", color="red")
-    # plt.plot(As,Hs, label="H / H_full", color="purple")
-    plt.plot(As, PsiPrimes, label="Psi' / Psi'_full", color="purple")
-    plt.legend()
-    plt.grid(True)
-    plt.xlabel("A/A_full")
-    # plt.ylabel("Y/Yfull")
-    plt.title("Street Geometry from Cross Sectional Area")
-
-    plt.savefig(f"figures/streetGeometry.png")
-    plt.show()
+    if A <= belowCrownArea:
+        c = np.sqrt(2 * ps["Sx"]) * (1 + np.sqrt(1 + np.power(ps["Sx"], -2)))
+        psiPrime = (4 / 3) * np.power(A, 1 / 3) * np.power(c, -2 / 3)
+    elif A <= betweenCrownAndCurbArea:
+        k = 0.5 * ps["Sx"] * ps["T_crown"] * ps["T_crown"] + ps["T_crown"] * ps[
+            "T_crown"
+        ] * np.sqrt(1 + ps["Sx"] * ps["Sx"])
+        psiPrime = (
+            (1 / 3)
+            * np.power(ps["T_crown"], 2 / 3)
+            * np.power(A, 2 / 3)
+            * np.power(A + k, -5 / 3)
+            * (3 * A + 5 * k)
+        )
+    else:
+        pStreet = (
+            ps["Sx"] * ps["T_crown"] * np.sqrt(np.power(ps["Sx"], -1) + 1)
+            + ps["H_curb"]
+        )
+        psiPrime = 2 * A * np.power(pStreet + ps["T_curb"], -1)
+    return psiPrime
 
 
 if __name__ == "__main__":
-    pprint(
-        "Don't call this directly. Or, if you want the geometry plots uncomment the code."
+    ftToM = 0.3048
+    ps = {
+        "T_curb": 8 * ftToM,
+        "T_crown": 15 * ftToM,
+        "H_curb": 1 * ftToM,
+        "S_back": 0.02 * ftToM,
+        "Sx": 0.02 * ftToM,
+    }
+    belowCrownArea = 0.5 * ps["T_crown"] * ps["Sx"] * ps["T_crown"]
+    betweenCrownAndCurbArea = belowCrownArea + (
+        ps["T_crown"] * (ps["H_curb"] - ps["Sx"] * ps["T_crown"])
     )
-    plotStreetFunctions(A_tbl[-1])
+    onSidewalkArea = (
+        betweenCrownAndCurbArea
+        + 0.5 * ps["T_curb"] * (ps["H_curb"] + ps["S_back"] * ps["T_curb"])
+        + ps["T_crown"] * (ps["S_back"] * ps["T_curb"])
+    )
+    xs = np.linspace(0, onSidewalkArea, 50)
+    ds = [depthFromAreaStreet(x, ps) for x in xs]
+    ys = [psiFromAreaStreet(x, ps) for x in xs]
+    yps = [psiPrimeFromAreaStreet(x, ps) for x in xs]
+    plt.plot(xs, ds, label="depth")
+    plt.plot(xs, ys, label="psi")
+    plt.plot(xs, yps, label="psi prime")
+    plt.legend()
+    plt.savefig(f"figures/CorrectedStreetGeometry.png")
+    plt.show()
+    # pprint(f"max height: {ps["Sx"]*ps["T_crown"]} vs max of function: {depthFromAreaStreet(0.5 * ps["T_crown"] * ps["Sx"] * ps["T_crown"],ps)}")
+    # pprint(f"max height in street: {ps["H_curb"]} vs max of function: {depthFromAreaStreet(maxAreaInStreet,ps)}")
