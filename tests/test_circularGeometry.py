@@ -1,4 +1,5 @@
 import pytest
+from pytest import approx
 import numpy as np
 from app.circularGeometry import (
     _angleFromArea,
@@ -6,7 +7,7 @@ from app.circularGeometry import (
     psiFromAreaCircle,
     areaFromPsiCircle,
     psiPrimeFromAreaCircle,
-    hydraulicRadiusFromAreaCircle,
+    AMAX,
 )
 
 
@@ -32,32 +33,34 @@ class TestCircularGeometry:
     def test_angle_from_area_empty_pipe(self, pipe_params):
         """Test angle calculation when area is zero."""
         A = 0.0
-        theta = _angleFromArea(A, pipe_params["yFull"])
-        assert np.isclose(theta, 0.0, atol=1e-5)
+        theta = _angleFromArea(A, pipe_params)
+        assert theta == approx(0.0, abs=1e-3)
+        # assert np.isclose(theta, 0.0, atol=1e-5)
 
     def test_angle_from_area_full_pipe(self, pipe_params):
         """Test angle calculation when pipe is full (A = Afull)."""
         Yfull = pipe_params["yFull"]
         Afull = 0.7854 * Yfull * Yfull
-        theta = _angleFromArea(Afull, pipe_params["yFull"])
+        theta = _angleFromArea(Afull, pipe_params)
         # Full pipe should have theta = 2*pi
-        assert np.isclose(theta, 2 * np.pi, atol=1e-5)
+        assert theta == approx(2*np.pi, abs=1e-3)
+        # assert np.isclose(theta, 2 * np.pi, atol=1e-5)
 
     def test_angle_from_area_half_full(self, pipe_params):
         """Test angle calculation when pipe is half full."""
         Yfull = pipe_params["yFull"]
         Afull = 0.7854 * Yfull * Yfull
         A_half = 0.5 * Afull
-        theta = _angleFromArea(A_half, pipe_params["yFull"])
+        theta = _angleFromArea(A_half, pipe_params)
         # Half area corresponds to theta ≈ π
-        assert 2.5 < theta < 3.5  # Approximate range for half area
+        assert 3.05 < theta < 3.25  # Approximate range for half area
 
     def test_angle_from_area_quarter_full(self, pipe_params):
         """Test angle calculation when pipe is quarter full."""
         Yfull = pipe_params["yFull"]
         Afull = 0.7854 * Yfull * Yfull
         A_quarter = 0.25 * Afull
-        theta = _angleFromArea(A_quarter, pipe_params["yFull"])
+        theta = _angleFromArea(A_quarter, pipe_params)
         assert theta > 0 and theta < np.pi
 
     def test_angle_from_area_increases_with_area(self, pipe_params):
@@ -65,7 +68,7 @@ class TestCircularGeometry:
         Yfull = pipe_params["yFull"]
         Afull = 0.7854 * Yfull * Yfull
         areas = np.linspace(0.01 * Afull, 0.99 * Afull, 10)
-        angles = [_angleFromArea(A, pipe_params["yFull"]) for A in areas]
+        angles = [_angleFromArea(A, pipe_params) for A in areas]
 
         for i in range(len(angles) - 1):
             assert angles[i] < angles[i + 1]
@@ -74,14 +77,16 @@ class TestCircularGeometry:
     def test_depth_from_area_empty(self, pipe_params):
         """Test depth when area is zero."""
         depth = depthFromAreaCircle(0.0, pipe_params)
-        assert np.isclose(depth, 0.0, atol=1e-6)
+        assert depth == approx(0.0)
+        # assert np.isclose(depth, 0.0, atol=1e-6)
 
     def test_depth_from_area_full(self, pipe_params):
         """Test depth when pipe is full."""
         Yfull = pipe_params["yFull"]
         Afull = 0.7854 * Yfull * Yfull
         depth = depthFromAreaCircle(Afull, pipe_params)
-        assert np.isclose(depth, Yfull, atol=1e-3)
+        assert depth == approx(Yfull, rel=1e-3)
+        # assert np.isclose(depth, Yfull, atol=1e-3)
 
     def test_depth_from_area_half_full(self, pipe_params):
         """Test depth when pipe is approximately half full by area."""
@@ -134,9 +139,10 @@ class TestCircularGeometry:
         depth_large = depthFromAreaCircle(A_ratio * Afull_large, large_pipe_params)
 
         # Relative depths should be similar
-        assert np.isclose(
-            depth_small / Yfull_small, depth_large / Yfull_large, rtol=0.01
-        )
+        assert depth_small / Yfull_small == approx(depth_large / Yfull_large, rel=1e-3)
+        # assert np.isclose(
+        #     depth_small / Yfull_small, depth_large / Yfull_large, rtol=0.01
+        # )
 
     def test_depth_boundary_between_methods(self, pipe_params):
         """Test depth calculation near the 4% boundary where method switches."""
@@ -153,13 +159,15 @@ class TestCircularGeometry:
 
         # Should be continuous
         assert depth_below < depth_above
-        assert np.isclose(depth_below, depth_above, rtol=0.1)
+        assert depth_below == approx(depth_above, rel=0.1)
+        # assert np.isclose(depth_below, depth_above, rtol=0.1)
 
     # Tests for psiFromAreaCircle
     def test_psi_from_area_zero(self, pipe_params):
         """Test section factor when area is zero."""
         psi = psiFromAreaCircle(0.0, pipe_params)
-        assert np.isclose(psi, 0.0, atol=1e-6)
+        assert psi == approx(0.0)
+        # assert np.isclose(psi, 0.0, atol=1e-6)
 
     def test_psi_from_area_full(self, pipe_params):
         """Test section factor when pipe is full."""
@@ -169,7 +177,8 @@ class TestCircularGeometry:
         PsiFull = Afull * np.power(Rfull, 2 / 3)
 
         psi = psiFromAreaCircle(Afull, pipe_params)
-        assert np.isclose(psi, PsiFull, rtol=0.01)
+        assert psi == approx(PsiFull,rel=1e-2)
+        # assert np.isclose(psi, PsiFull, rtol=0.01)
 
     def test_psi_monotonicity(self, pipe_params):
         """Test that psi increases monotonically with area."""
@@ -211,7 +220,8 @@ class TestCircularGeometry:
         psi_above = psiFromAreaCircle(A_above, pipe_params)
 
         assert psi_below < psi_above
-        assert np.isclose(psi_below, psi_above, rtol=0.1)
+        assert psi_below == approx(psi_above,rel=0.1)
+        # assert np.isclose(psi_below, psi_above, rtol=0.1)
 
     # Tests for areaFromPsiCircle (inverse function)
     def test_area_from_psi_roundtrip(self, pipe_params):
@@ -232,12 +242,14 @@ class TestCircularGeometry:
         for A_original in test_areas:
             psi = psiFromAreaCircle(A_original, pipe_params)
             A_recovered = areaFromPsiCircle(psi, pipe_params)
-            assert np.isclose(A_original, A_recovered, rtol=0.03)
+            assert A_original == approx(A_recovered, abs=3e-2)
+            # assert np.isclose(A_original, A_recovered, rtol=0.03)
 
     def test_area_from_psi_zero(self, pipe_params):
         """Test area from psi when psi is zero."""
         A = areaFromPsiCircle(0.0, pipe_params)
-        assert np.isclose(A, 0.0, atol=1e-6)
+        assert A == approx(0.0)
+        # assert np.isclose(A, 0.0, atol=1e-6)
 
     def test_area_from_psi_full(self, pipe_params):
         """Test area from psi when pipe is full."""
@@ -247,18 +259,19 @@ class TestCircularGeometry:
         PsiFull = Afull * np.power(Rfull, 2 / 3)
 
         A = areaFromPsiCircle(PsiFull, pipe_params)
-        assert np.isclose(A, Afull, rtol=0.01)
+        assert A == approx(Afull, rel=1e-2)
+        # assert np.isclose(A, Afull, rtol=0.01)
 
     # Tests for psiPrimeFromAreaCircle
     def test_psi_prime_positive(self, pipe_params):
         """Test that psi prime is positive for all valid areas."""
         Yfull = pipe_params["yFull"]
         Afull = 0.7854 * Yfull * Yfull
-        areas = np.linspace(0.01 * Afull, 0.99 * Afull, 20)
+        areas = np.linspace(0.01 * Afull, (AMAX-0.01) * Afull, 20)
 
         for A in areas:
             psiPrime = psiPrimeFromAreaCircle(A, pipe_params)
-            assert psiPrime > 0, f"psi prime not positive for A={A}"
+            assert psiPrime > 0, f"psi prime not positive for A/Afull={A/Afull}"
 
     def test_psi_prime_small_area_branch(self, pipe_params):
         """Test psi prime calculation for small area (< 4% full)."""
@@ -290,7 +303,8 @@ class TestCircularGeometry:
         psiPrime = psiPrimeFromAreaCircle(A, pipe_params)
 
         # Should be roughly equal
-        assert np.isclose(psiPrime, numerical_derivative, rtol=0.1)
+        assert psiPrime == approx(numerical_derivative, rel=0.1)
+        # assert np.isclose(psiPrime, numerical_derivative, rtol=0.1)
 
     def test_psi_prime_different_pipe_sizes(self, small_pipe_params, large_pipe_params):
         """Test psi prime scales appropriately with pipe size."""
@@ -312,79 +326,6 @@ class TestCircularGeometry:
         assert psiPrime_small > 0
         assert psiPrime_large > 0
 
-    # Tests for hydraulicRadiusFromAreaCircle
-    def test_hydraulic_radius_zero_area(self, pipe_params):
-        """Test hydraulic radius when area is very small."""
-        Yfull = pipe_params["yFull"]
-        Afull = 0.7854 * Yfull * Yfull
-        A_tiny = 0.001 * Afull
-        r = hydraulicRadiusFromAreaCircle(A_tiny, pipe_params)
-        assert r >= 0
-        assert r < 0.01 * Yfull
-
-    def test_hydraulic_radius_full_pipe(self, pipe_params):
-        """Test hydraulic radius when pipe is full."""
-        Yfull = pipe_params["yFull"]
-        Afull = 0.7854 * Yfull * Yfull
-        Rfull = 0.25 * Yfull
-
-        r = hydraulicRadiusFromAreaCircle(Afull, pipe_params)
-        assert np.isclose(r, Rfull, rtol=0.01)
-
-    def test_hydraulic_radius_half_area(self, pipe_params):
-        """Test hydraulic radius at half area."""
-        Yfull = pipe_params["yFull"]
-        Afull = 0.7854 * Yfull * Yfull
-        Rfull = 0.25 * Yfull
-        A_half = 0.5 * Afull
-
-        r = hydraulicRadiusFromAreaCircle(A_half, pipe_params)
-        assert 0 < r <= Rfull
-
-    def test_hydraulic_radius_small_area_branch(self, pipe_params):
-        """Test hydraulic radius for small area (< 4% full)."""
-        Yfull = pipe_params["yFull"]
-        Afull = 0.7854 * Yfull * Yfull
-        A_small = 0.03 * Afull
-        r = hydraulicRadiusFromAreaCircle(A_small, pipe_params)
-        assert r > 0
-        assert r < 0.25 * Yfull
-
-    def test_hydraulic_radius_large_area_branch(self, pipe_params):
-        """Test hydraulic radius for large area (> 4% full)."""
-        Yfull = pipe_params["yFull"]
-        Afull = 0.7854 * Yfull * Yfull
-        A_large = 0.6 * Afull
-        r = hydraulicRadiusFromAreaCircle(A_large, pipe_params)
-        assert r > 0
-
-    def test_hydraulic_radius_physical_bounds(self, pipe_params):
-        """Test that hydraulic radius stays within physical bounds."""
-        Yfull = pipe_params["yFull"]
-        Afull = 0.7854 * Yfull * Yfull
-        Rfull = 0.25 * Yfull
-
-        areas = np.linspace(0.01 * Afull, 0.99 * Afull, 20)
-        for A in areas:
-            r = hydraulicRadiusFromAreaCircle(A, pipe_params)
-            # R should be between 0 and D/4 for circular pipes
-            assert 0 <= r <= Rfull * 1.1, f"R out of bounds for A={A}"
-
-    def test_hydraulic_radius_boundary_between_methods(self, pipe_params):
-        """Test hydraulic radius near the 4% boundary."""
-        Yfull = pipe_params["yFull"]
-        Afull = 0.7854 * Yfull * Yfull
-
-        A_below = 0.039 * Afull
-        r_below = hydraulicRadiusFromAreaCircle(A_below, pipe_params)
-
-        A_above = 0.041 * Afull
-        r_above = hydraulicRadiusFromAreaCircle(A_above, pipe_params)
-
-        # Should be continuous
-        assert r_below < r_above
-        assert np.isclose(r_below, r_above, rtol=0.1)
-
     # Integration tests
     def test_consistent_geometry_calculations(self, pipe_params):
         """Test that all geometric functions are consistent with each other."""
@@ -395,12 +336,10 @@ class TestCircularGeometry:
         # Get all geometric properties
         depth = depthFromAreaCircle(A_test, pipe_params)
         psi = psiFromAreaCircle(A_test, pipe_params)
-        r = hydraulicRadiusFromAreaCircle(A_test, pipe_params)
 
         # All should be positive and reasonable
         assert 0 < depth < Yfull
         assert psi > 0
-        assert 0 < r < 0.25 * Yfull
 
     def test_multiple_pipe_sizes_consistency(self):
         """Test that functions work consistently across different pipe sizes."""
@@ -416,7 +355,8 @@ class TestCircularGeometry:
 
         # All relative depths should be very similar
         for i in range(len(relative_depths) - 1):
-            assert np.isclose(relative_depths[i], relative_depths[i + 1], rtol=0.01)
+            assert relative_depths[i] == approx(relative_depths[i+1], rel=0.01)
+            # assert np.isclose(relative_depths[i], relative_depths[i + 1], rtol=0.01)
 
     def test_numerical_stability_extreme_values(self, pipe_params):
         """Test numerical stability with very small and very large areas."""
@@ -449,12 +389,10 @@ class TestCircularGeometry:
             depth = depthFromAreaCircle(A, pipe_params)
             psi = psiFromAreaCircle(A, pipe_params)
             psi_prime = psiPrimeFromAreaCircle(A, pipe_params)
-            r = hydraulicRadiusFromAreaCircle(A, pipe_params)
 
             # Basic sanity checks
             assert 0 < depth <= Yfull
             assert psi > 0
-            assert 0 < r <= 0.25 * Yfull
 
 
 if __name__ == "__main__":

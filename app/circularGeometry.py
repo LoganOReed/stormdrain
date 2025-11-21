@@ -14,6 +14,8 @@ import math
 from . import A_tbl, R_tbl, STREET_Y_FULL, STREET_LANE_SLOPE
 
 CIRCLE_N = 51
+# area ratio for max flow
+AMAX = 0.9756
 
 def getThetaOfAlpha(alpha):
     """
