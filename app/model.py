@@ -73,11 +73,11 @@ class Model:
     def run(self):
         for n in range(len(self.ts)):
             self.step(n)
-            pprint(f"peakDischarges: {self.peakDischarges}")
+            # pprint(f"peakDischarges: {self.peakDischarges}")
         visualize(
             self.subcatchment,
             self.street,
-            self.street.yFull,
+            self.street.G.es[0]["yFull"],
             self.sewer,
             0.5,
             self.subcatchmentDepths,
@@ -171,12 +171,12 @@ class Model:
                         self.street.G.es[eid]["n"],
                     )
                 )
-        pprint(f"finished updateDrainCapture: {self.coupling}")
+        # pprint(f"finished updateDrainCapture: {self.coupling}")
 
     def updateRunoff(self):
         for nid in self.subcatchment.G.vs:
             self.coupling["subcatchmentRunoff"][self.subcatchment.hydraulicCoupling[nid.index]] = nid["runoff"]
-        pprint(f"finished updateRunoff: {self.coupling}")
+        # pprint(f"finished updateRunoff: {self.coupling}")
 
 
 

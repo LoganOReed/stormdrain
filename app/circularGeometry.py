@@ -18,6 +18,13 @@ CIRCLE_N = 51
 AMAX = 0.9756
 
 
+def getPsiMax(p):
+    Yfull = p["yFull"]
+    Afull = 0.7854 * Yfull * Yfull
+    Rfull = 0.25 * Yfull
+    PsiFull = Afull * np.power(Rfull, 2 / 3)
+    return PsiFull
+
 def getThetaOfAlpha(alpha):
     """
     Calculate theta angle from normalized area alpha using iterative method

@@ -9,6 +9,10 @@ import matplotlib.pyplot as plt
 from pprint import pprint
 
 
+# open channel, so max psi is full
+def maxPsiStreet(ps):
+    return psiFromAreaStreet(fullAreaStreet(ps), ps)
+
 def fullAreaStreet(ps):
     belowCrownArea = 0.5 * ps["T_crown"] * ps["Sx"] * ps["T_crown"]
     betweenCrownAndCurbArea = belowCrownArea + (
@@ -85,6 +89,7 @@ def psiFromAreaStreet(A, ps):
         )
         psi = A * A * np.power(pStreet + ps["T_curb"], -1)
     return psi
+
 
 
 def psiPrimeFromAreaStreet(A, ps):

@@ -13,15 +13,16 @@ from .streetGeometry import (
     psiPrimeFromAreaStreet,
     # areaFromPsiStreet,
     fullAreaStreet,
+    maxPsiStreet,
 )
 from .circularGeometry import (
     depthFromAreaCircle,
     psiFromAreaCircle,
     psiPrimeFromAreaCircle,
     areaFromPsiCircle,
+    getPsiMax,
 )
 from . import A_tbl, R_tbl, STREET_Y_FULL, STREET_LANE_SLOPE
-
 
 class HydraulicGraph:
     """Parent Hydraulic Graph for both Street and Sewer Graph."""
@@ -33,7 +34,6 @@ class HydraulicGraph:
             self.depthFromArea = depthFromAreaStreet
             self.psiFromArea = psiFromAreaStreet
             self.psiPrimeFromArea = psiPrimeFromAreaStreet
-            self.yFull = STREET_Y_FULL  # diff between lowest and highest point from choice of Street Parameters
         else:
             # TODO: Change this to circular geometry
             self.depthFromArea = depthFromAreaCircle
@@ -133,10 +133,14 @@ class HydraulicGraph:
 
         if self.graphType == "STREET":
             # This is a choice made when creating the street lookup tables
-            self.G.es["yFull"] = [STREET_Y_FULL for _ in self.G.es]
+            self.G.es["yFull"] = np.array([STREET_Y_FULL for _ in self.G.es])
+            self.G.es["Afull"] = np.array([fullAreaStreet(e) for e in self.G.es])
+            self.G.es["PsiFull"] = np.array([maxPsiStreet(e) for e in self.G.es]) 
         else:
             # corresponds to around 18in pipe
-            self.G.es["yFull"] = [0.5 for _ in self.G.es]
+            self.G.es["yFull"] = np.array([0.5 for _ in self.G.es])
+            self.G.es["Afull"] = np.array([(np.pi / 4)*e["yFull"]*e["yFull"] for e in self.G.es])
+            self.G.es["PsiFull"] = np.array([getPsiMax(e) for e in self.G.es]) 
 
         # 1 is source node and 2 is target node
         self.G.es["Q1"] = np.zeros(self.G.ecount())
@@ -178,6 +182,93 @@ class HydraulicGraph:
 
 
         """
+        def solveContinuity(eid, THETA, PHI):
+            """uses normalized flow."""
+            # Initial guess at previous timestep
+            aNew = eid["A2Prev"]
+            #1. get consts
+            c1 = (eid["length"] * THETA) / (dt * PHI)
+            c2 = (
+                c1
+                * (
+                    (1 - THETA) * (eid["A1"] - eid["A1Prev"])
+                    - (THETA * eid["A2Prev"])
+                )
+                + ((1 - PHI) / PHI)
+                * (eid["Q2Prev"] - eid["Q1Prev"])
+                - eid["Q1"]
+            )
+            beta = np.sqrt(eid["slope"]) / eid["n"]
+            
+
+            #2. determine bounds on a
+            aHi = 1.0;
+            fHi = 1.0 + c1 + c2;
+
+            # try lower bound st section factor is max
+            aLo = self.psiFromArea(eid["PsiFull"], eid) / eid["Afull"]
+
+            if aLo < aHi:
+                fLo = ( beta * eid["PsiFull"] ) + (c1 * aLo) + c2;
+            else:
+                fLo = fHi
+
+            # if fLo and fHi have same sign, set lo to 0
+            if fLo*fHi > 0:
+                aHi = aLo
+                fHi = fLo
+                aLo = 0.0
+                fLo = c2
+            if fLo*fHi >= 0:
+                # do search
+                # check that A2Prev is in interval
+                if aNew < aLo or aNew > aHi:
+                    aNew = (aLo + aHi) / 2
+                if fLo > fHi:
+                    # check that bounds are the right way around
+                    aTmp = aLo
+                    aLo = aHi
+                    aHi = aTmp
+                aNew,n = newtonBisection(aLo,aHi,continuity, p={
+                    "c1": c1,
+                    "c2": c2,
+                    "beta": beta,
+                    "eid": eid,
+                    }, xinit=aNew)
+            elif fLo < 0:
+                # use full flow
+                aNew = 1.0
+            elif fLo > 0:
+                # use no flow
+                aNew = 0.0
+            pprint(f"new aNew: {aNew}")
+            return aNew
+
+
+
+        def continuity(x,p):
+            """uses normalized flow."""
+            f = (
+                p["beta"] * self.psiFromArea(x, p["eid"])
+                + p["c1"] * x
+                + p["c2"]
+            )
+            fp = (
+                p["beta"]
+                * self.psiPrimeFromArea(x, p["eid"])
+                + p["c1"]
+            )
+            return f, fp
+
+
+            pass
+        def kinematic(dt,THETA,PHI):
+            """wrapper for kinematic wave model."""
+            for eid in self.G.es:
+                solveContinuity(eid,THETA,PHI)
+        THETA = 0.6
+        PHI = 0.6
+        kinematic(dt,THETA,PHI)
         depth = 0
         averageArea = 0
         peakDischarge = 0
