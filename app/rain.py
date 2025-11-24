@@ -12,7 +12,6 @@ import scipy as sc
 import random
 import csv
 from pprint import pprint
-from .network import SubcatchmentGraph, SewerGraph, StreetGraph
 from .newtonBisection import newtonBisection
 from .visualize import visualize
 

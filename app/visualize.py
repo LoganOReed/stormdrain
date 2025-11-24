@@ -9,7 +9,6 @@ if platform == "linux":
     matplotlib.use("module://matplotlib-backend-kitty")
 import matplotlib.pyplot as plt
 from pprint import pprint
-from .network import SubcatchmentGraph, SewerGraph, StreetGraph
 
 import matplotlib.ticker as mticker
 
