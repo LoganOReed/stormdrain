@@ -13,7 +13,7 @@ import scipy as sc
 import random
 import csv
 from pprint import pprint
-from .network import SubcatchmentGraph
+from .subcatchmentGraph import SubcatchmentGraph
 from .hydraulicGraph import HydraulicGraph
 from .newtonBisection import newtonBisection
 from .visualize import visualize
