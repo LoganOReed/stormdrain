@@ -145,25 +145,38 @@ class Model:
         # pprint(f"New Coupling: {newCoupling}")
 
         # Update Coupling Terms
-        self.coupling["subcatchmentRunoff"] = newCoupling["subcatchmentRunoff"]
-        self.coupling["drainCapture"] = newCoupling["drainCapture"]
-        self.coupling["drainOverflow"] = newCoupling["drainOverflow"]
+        self.updateDrainCapture()
+        self.updateRunoff()
+        # self.coupling["subcatchmentRunoff"] = newCoupling["subcatchmentRunoff"]
+        # self.coupling["drainCapture"] = newCoupling["drainCapture"]
+        # self.coupling["drainOverflow"] = newCoupling["drainOverflow"]
 
     # TODO: Get test suite for this
-    def updateDrainCapture(coupling, G):
-        if G.vs[nid]["drain"] == 1:
-            coupling["drainCapture"][G.vs[nid]["coupledID"] - 1] = (
-                capturedFlow(
-                    G.es[eid]["Q1"],
-                    G.es[eid]["A1"],
-                    G.es[eid]["slope"],
-                    G.es[eid]["Sx"],
-                    G.vs[nid]["drainLength"],
-                    G.vs[nid]["drainWidth"],
-                    G.es[eid]["n"],
+    def updateDrainCapture(self):
+        for nid in self.street.G.vs:
+            if nid.outdegree() != 0:
+                eid = nid.incident(mode="out")[0].index
+            else:
+                self.coupling["drainCapture"][nid["coupledID"] - 1] = 0
+                continue
+                
+            if nid["drain"] == 1:
+                self.coupling["drainCapture"][nid["coupledID"] - 1] = (
+                    capturedFlow(
+                        self.street.G.es[eid]["Q1"],
+                        self.street.G.es[eid]["slope"],
+                        self.street.G.es[eid]["Sx"],
+                        nid["drainLength"],
+                        nid["drainWidth"],
+                        self.street.G.es[eid]["n"],
+                    )
                 )
-            )
-        return coupling
+        pprint(f"finished updateDrainCapture: {self.coupling}")
+
+    def updateRunoff(self):
+        for nid in self.subcatchment.G.vs:
+            self.coupling["subcatchmentRunoff"][self.subcatchment.hydraulicCoupling[nid.index]] = nid["runoff"]
+        pprint(f"finished updateRunoff: {self.coupling}")
 
 
 

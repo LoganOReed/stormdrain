@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import scipy as sc
 import random
-from .network import SubcatchmentGraph
+from .subcatchmentGraph import SubcatchmentGraph
 from .rain import normalizeRainfall
 
 

@@ -41,6 +41,7 @@ class SubcatchmentGraph:
                 # TODO: Make n be in csv
                 "n": np.array([0.017 for _ in range(n)]),
                 "depth": np.zeros(n),
+                "runoff": np.zeros(n),
             },
         )
         self.G.vs["coupledStreet"] = np.array(data["outgoing"])
@@ -96,8 +97,12 @@ class SubcatchmentGraph:
             ode, (t, t + dt), self.G.vs["depth"], method="RK45"
         )
         self.G.vs["depth"] = solution.y[:, -1]
-        pprint(f"outflow: {outflow * self.G.vs['area']}")
-        return solution.y[:, -1], outflow * self.G.vs["area"]
+        self.G.vs["runoff"] = np.array(outflow * self.G.vs['area'])
+
+        # pprint(f"outflow: {self.G.vs['runoff']}")
+        # pprint(f"type: {type(self.G.vs['runoff'])}")
+
+        return solution.y[:, -1], np.array(self.G.vs["runoff"])
 
     def visualize(self, times, depths, fileName=None):
         """
