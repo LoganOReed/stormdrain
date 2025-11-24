@@ -10,10 +10,10 @@ from .streetGeometry import psiFromAreaStreet
 
 # TODO: Create enum of desired drains
 # TODO: Have v0 depend on enum parameter
-def capturedFlow(Q, A, S0, Sx, L, W, n=0.017):
-    """Computes Flow Captured from a P-50x100 drain on grade where street has slope Sx, A is cross sectional area, Q is flow, L,W are length and width of drain."""
+def capturedFlow(Q, S0, Sx, L, W, n=0.017):
+    """Computes Flow Captured from a P-50x100 drain on grade where street has slope Sx, Q is flow, L,W are length and width of drain."""
     # NOTE: This is specific to P-50x100, to use other drains change this
-    if A == 0:
+    if L == 0 or W == 0:
         return 0
     # T = width of water in street
     T = np.power(Q * n / (0.376 * np.power(Sx, 5 / 3) * np.sqrt(S0)), 3 / 8)

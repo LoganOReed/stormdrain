@@ -7,11 +7,11 @@ import random
 from pprint import pprint
 from .newtonBisection import newtonBisection
 from .drainCapture import capturedFlow
-from .analyticStreetGeometry import (
+from .streetGeometry import (
     depthFromAreaStreet,
     psiFromAreaStreet,
     psiPrimeFromAreaStreet,
-    areaFromPsiStreet,
+    # areaFromPsiStreet,
     fullAreaStreet,
 )
 from .circularGeometry import (
@@ -393,7 +393,7 @@ class HydraulicGraph:
             else:
                 if self.graphType == "STREET":
                     self.G.es[eid]["A2"] = newtonBisection(
-                        0, fullAreaStreet(p), A2NewFunc, p=p, xinit=self.G.es[eid]["A2"]
+                        0, fullAreaStreet(p), A2Func, p=p, xinit=self.G.es[eid]["A2"]
                     )
                 else:
                     Afull = 0.7854 * self.G.es[eid]["yFull"] * self.G.es[eid]["yFull"]

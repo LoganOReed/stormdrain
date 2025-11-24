@@ -18,6 +18,7 @@ from .hydraulicGraph import HydraulicGraph
 from .newtonBisection import newtonBisection
 from .visualize import visualize
 from .rain import normalizeRainfall
+from .drainCapture import capturedFlow
 
 
 class Model:
@@ -147,6 +148,23 @@ class Model:
         self.coupling["subcatchmentRunoff"] = newCoupling["subcatchmentRunoff"]
         self.coupling["drainCapture"] = newCoupling["drainCapture"]
         self.coupling["drainOverflow"] = newCoupling["drainOverflow"]
+
+    # TODO: Get test suite for this
+    def updateDrainCapture(coupling, G):
+        if G.vs[nid]["drain"] == 1:
+            coupling["drainCapture"][G.vs[nid]["coupledID"] - 1] = (
+                capturedFlow(
+                    G.es[eid]["Q1"],
+                    G.es[eid]["A1"],
+                    G.es[eid]["slope"],
+                    G.es[eid]["Sx"],
+                    G.vs[nid]["drainLength"],
+                    G.vs[nid]["drainWidth"],
+                    G.es[eid]["n"],
+                )
+            )
+        return coupling
+
 
 
 if __name__ == "__main__":
