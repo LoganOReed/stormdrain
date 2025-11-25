@@ -155,7 +155,7 @@ class HydraulicGraph:
         # pprint(self.G.summary())
 
     # TODO: change runoff/DrainOverflows/DrainInflows to be hydraulicGraph agnostic for inputs and outputs
-    def update(self, t, dt, coupledInputs):
+    def update(self, t, dt, coupling):
         """
         Updates the A1,A2,Q1,Q2 of the network.
 
@@ -165,7 +165,7 @@ class HydraulicGraph:
             initial time
         dt : float
             time between initial time and desired end time
-        coupledInputs : list(float)
+        coupling : list(float)
             List of coupled Flow inputs, subcatchments and overflow for street and drain for Sewer.
             These are a list the length of the data file for ease of access
 
@@ -182,6 +182,26 @@ class HydraulicGraph:
 
 
         """
+        def getIncomingEdges(n,G):
+            # total incoming is 0 if nothing is incoming
+            if n.indegree() == 0:
+                return 0.0
+            totalIncoming = 0.0
+            for incomingEdge in n.incident(mode="in"):
+                totalIncoming += incomingEdge["Q2"]
+            pprint(f"totalIncoming for {n.index}: {totalIncoming}")
+            return totalIncoming
+        def getIncomingCoupled(n,coupling):
+            incomingCoupled = 0.0
+            #1. add runoff
+            incomingCoupled += coupling["subcatchmentRunoff"][n["coupledID"] - 1]
+            #2. add drain
+            incomingCoupled += coupling["drainCapture"][n["coupledID"] - 1]
+            #3. add overflow
+            incomingCoupled += coupling["drainOverflow"][n["coupledID"] - 1]
+            pprint(f"incoming coupled for {n.index}: {incomingCoupled}")
+            return incomingCoupled
+
         def solveContinuity(eid, THETA, PHI):
             """uses normalized flow."""
             # Initial guess at previous timestep
@@ -243,9 +263,6 @@ class HydraulicGraph:
                 aNew = 0.0
             pprint(f"new aNew: {aNew}")
             return aNew
-
-
-
         def continuity(x,p):
             """uses normalized flow."""
             f = (
@@ -264,15 +281,63 @@ class HydraulicGraph:
             pass
         def kinematic(dt,THETA,PHI):
             """wrapper for kinematic wave model."""
-            for eid in self.G.es:
-                solveContinuity(eid,THETA,PHI)
+            # check that network is acyclic
+            if not self.G.is_dag():
+                raise ValueError("Street Network must be acyclic.")
+
+            # save previous values
+            self.G.es["Q1Prev"] = self.G.es["Q1"]
+            self.G.es["Q2Prev"] = self.G.es["Q2"]
+            self.G.es["A1Prev"] = self.G.es["A1"]
+            self.G.es["A2Prev"] = self.G.es["A2"]
+
+            #1. topo sort
+            topoOrder = self.G.topological_sorting()
+            for nid in topoOrder:
+                n = self.G.vs[nid]
+                if n.outdegree() != 0:
+                    e = self.G.vs[nid].incident(mode="out")[0]
+                    qFull = np.sqrt(e["slope"])* (1/e["n"])*e["PsiFull"]
+                else:
+                    pprint(f"skipping update for nid: {nid}")
+                    return
+
+                #2. Q1 (get incoming edges and coupling terms)
+                incomingEdges = getIncomingEdges(n,self.G)
+                incomingCoupled = getIncomingCoupled(n,coupling)
+                if incomingEdges + incomingCoupled < 0:
+                    e["Q1"] = 0.0
+                    qin = 0.0
+                else:
+                    e["Q1"] = incomingEdges + incomingCoupled
+                    qin = e["Q1"] / qFull
+                
+                #3. A1 (inverse manning)
+                def phiInverse(x,psiFromArea,psiPrimeFromArea,p):
+                    # TODO: I need to double check what im doing here
+                    # NOTE: THIS IS DEFINITELY WRONG
+                    f = psiFromArea((qin / ((e["slope"]* (1/e["n"])) / qFull)), p) - x
+                    fp = psiPrimeFromArea((qin / ((e["slope"]* (1/e["n"])) / qFull)), p)
+                    return f, fp
+
+                if e["Q1"] < 1e-20:
+                    e["A1"] = 0.0
+                else:
+                    e["A1"] = newtonBisection()
+
+
+                #4. A2 (solve continuity)
+                #5. Q2 (Manning Equation)
+                #6. OPTIONAL: Get Measurables
+            # for eid in self.G.es:
+            #      solveContinuity(eid,THETA,PHI)
         THETA = 0.6
         PHI = 0.6
         kinematic(dt,THETA,PHI)
         depth = 0
         averageArea = 0
         peakDischarge = 0
-        return depth, averageArea, coupledInputs, peakDischarge
+        return depth, averageArea, coupling, peakDischarge
 
 
 if __name__ == "__main__":

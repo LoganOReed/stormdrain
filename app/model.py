@@ -161,7 +161,8 @@ class Model:
                 continue
                 
             if nid["drain"] == 1:
-                self.coupling["drainCapture"][nid["coupledID"] - 1] = (
+                # self.coupling["drainCapture"][nid["coupledID"] - 1] = (
+                flow = (
                     capturedFlow(
                         self.street.G.es[eid]["Q1"],
                         self.street.G.es[eid]["slope"],
@@ -170,7 +171,12 @@ class Model:
                         nid["drainWidth"],
                         self.street.G.es[eid]["n"],
                     )
+
                 )
+                # remove flow from street node
+                self.coupling["drainCapture"][nid["coupledID"] - 1] = -1*flow
+                # add flow to sewer node
+                self.coupling["drainCapture"][nid["drainCoupledID"] - 1] = flow
         # pprint(f"finished updateDrainCapture: {self.coupling}")
 
     def updateRunoff(self):
