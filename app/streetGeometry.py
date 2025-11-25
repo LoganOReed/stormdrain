@@ -18,12 +18,7 @@ def fullAreaStreet(ps):
     betweenCrownAndCurbArea = belowCrownArea + (
         ps["T_crown"] * (ps["H_curb"] - ps["Sx"] * ps["T_crown"])
     )
-    onSidewalkArea = (
-        betweenCrownAndCurbArea
-        + 0.5 * ps["T_curb"] * (ps["H_curb"] + ps["S_back"] * ps["T_curb"])
-        + ps["T_crown"] * (ps["S_back"] * ps["T_curb"])
-    )
-    return onSidewalkArea
+    return betweenCrownAndCurbArea
 
 
 def depthFromAreaStreet(A, ps):
@@ -35,27 +30,14 @@ def depthFromAreaStreet(A, ps):
     betweenCrownAndCurbArea = belowCrownArea + (
         ps["T_crown"] * (ps["H_curb"] - ps["Sx"] * ps["T_crown"])
     )
-    # pprint(f"{betweenCrownAndCurbArea}")
-    # above curb
-    onSidewalkArea = (
-        betweenCrownAndCurbArea
-        + 0.5 * ps["T_curb"] * (ps["H_curb"] + ps["S_back"] * ps["T_curb"])
-        + ps["T_crown"] * (ps["S_back"] * ps["T_curb"])
-    )
-
     # water is below street crown
     if A <= belowCrownArea:
         d = np.sqrt(2 * ps["Sx"] * A)
     # water is above crown but not curb
-    elif A > belowCrownArea and A <= betweenCrownAndCurbArea:
+    else:
         d = (A - belowCrownArea) / ps["T_crown"]
         d = d + ps["Sx"] * ps["T_crown"]
     # above curb but on sidewalk
-    elif A > betweenCrownAndCurbArea and A <= onSidewalkArea:
-        d = (A - betweenCrownAndCurbArea) / (ps["T_crown"] + ps["T_curb"])
-        d = d + ps["H_curb"]
-        # d = ()
-
     return d
 
 # NOTE: The slope of the curb is 0 to simplify the analytic solution in the last case
@@ -64,16 +46,10 @@ def psiFromAreaStreet(A, ps):
     betweenCrownAndCurbArea = belowCrownArea + (
         ps["T_crown"] * (ps["H_curb"] - ps["Sx"] * ps["T_crown"])
     )
-    onSidewalkArea = (
-        betweenCrownAndCurbArea
-        + 0.5 * ps["T_curb"] * (ps["H_curb"] + ps["S_back"] * ps["T_curb"])
-        + ps["T_crown"] * (ps["S_back"] * ps["T_curb"])
-    )
-
     if A <= belowCrownArea:
         c = np.sqrt(2 * ps["Sx"]) * (1 + np.sqrt(1 + np.power(ps["Sx"], -2)))
         psi = np.power(A, 4 / 3) * np.power(c, -2 / 3)
-    elif A <= betweenCrownAndCurbArea:
+    else:
         k = 0.5 * ps["Sx"] * ps["T_crown"] * ps["T_crown"] + ps["T_crown"] * ps[
             "T_crown"
         ] * np.sqrt(1 + ps["Sx"] * ps["Sx"])
@@ -82,12 +58,6 @@ def psiFromAreaStreet(A, ps):
             * np.power(A, 5 / 3)
             * np.power(A + k, -2 / 3)
         )
-    else:
-        pStreet = (
-            ps["Sx"] * ps["T_crown"] * np.sqrt(np.power(ps["Sx"], -1) + 1)
-            + ps["H_curb"]
-        )
-        psi = A * A * np.power(pStreet + ps["T_curb"], -1)
     return psi
 
 
@@ -97,16 +67,10 @@ def psiPrimeFromAreaStreet(A, ps):
     betweenCrownAndCurbArea = belowCrownArea + (
         ps["T_crown"] * (ps["H_curb"] - ps["Sx"] * ps["T_crown"])
     )
-    onSidewalkArea = (
-        betweenCrownAndCurbArea
-        + 0.5 * ps["T_curb"] * (ps["H_curb"] + ps["S_back"] * ps["T_curb"])
-        + ps["T_crown"] * (ps["S_back"] * ps["T_curb"])
-    )
-
     if A <= belowCrownArea:
         c = np.sqrt(2 * ps["Sx"]) * (1 + np.sqrt(1 + np.power(ps["Sx"], -2)))
         psiPrime = (4 / 3) * np.power(A, 1 / 3) * np.power(c, -2 / 3)
-    elif A <= betweenCrownAndCurbArea:
+    else:
         k = 0.5 * ps["Sx"] * ps["T_crown"] * ps["T_crown"] + ps["T_crown"] * ps[
             "T_crown"
         ] * np.sqrt(1 + ps["Sx"] * ps["Sx"])
@@ -117,14 +81,40 @@ def psiPrimeFromAreaStreet(A, ps):
             * np.power(A + k, -5 / 3)
             * (3 * A + 5 * k)
         )
-    else:
-        pStreet = (
-            ps["Sx"] * ps["T_crown"] * np.sqrt(np.power(ps["Sx"], -1) + 1)
-            + ps["H_curb"]
-        )
-        psiPrime = 2 * A * np.power(pStreet + ps["T_curb"], -1)
     return psiPrime
 
+def areaFromPsiStreet(psi, ps):
+    """Gets cross sectional area from psi. ps is street parameters"""
+    belowCrownArea = 0.5 * ps["T_crown"] * ps["Sx"] * ps["T_crown"]
+    
+    # Calculate psi at the boundary between below-crown and above-crown regimes
+    c = np.sqrt(2 * ps["Sx"]) * (1 + np.sqrt(1 + np.power(ps["Sx"], -2)))
+    psi_boundary = np.power(belowCrownArea, 4 / 3) * np.power(c, -2 / 3)
+    
+    if psi <= psi_boundary:
+        # Below crown - closed form solution
+        # psi = A^(4/3) * c^(-2/3)
+        # A = (psi * c^(2/3))^(3/4)
+        A = np.power(psi * np.power(c, 2/3), 3/4)
+    else:
+        # Above crown - need numerical solver
+        k = 0.5 * ps["Sx"] * ps["T_crown"] * ps["T_crown"] + ps["T_crown"] * ps[
+            "T_crown"
+        ] * np.sqrt(1 + ps["Sx"] * ps["Sx"])
+        
+        # Define the equation to solve: psi(A) - psi = 0
+        def equation(A):
+            return (
+                np.power(ps["T_crown"], 2 / 3)
+                * np.power(A, 5 / 3)
+                * np.power(A + k, -2 / 3)
+                - psi
+            )
+        
+        # Use belowCrownArea as initial guess
+        A = sp.optimize.fsolve(equation, belowCrownArea)[0]
+    
+    return A
 
 if __name__ == "__main__":
     ftToM = 0.3048
@@ -132,8 +122,8 @@ if __name__ == "__main__":
         "T_curb": 8 * ftToM,
         "T_crown": 15 * ftToM,
         "H_curb": 1 * ftToM,
-        "S_back": 0.02 * ftToM,
-        "Sx": 0.02 * ftToM,
+        "S_back": 0.02 ,
+        "Sx": 0.02,
     }
     belowCrownArea = 0.5 * ps["T_crown"] * ps["Sx"] * ps["T_crown"]
     betweenCrownAndCurbArea = belowCrownArea + (
@@ -144,7 +134,7 @@ if __name__ == "__main__":
         + 0.5 * ps["T_curb"] * (ps["H_curb"] + ps["S_back"] * ps["T_curb"])
         + ps["T_crown"] * (ps["S_back"] * ps["T_curb"])
     )
-    xs = np.linspace(0, onSidewalkArea, 500)
+    xs = np.linspace(0, betweenCrownAndCurbArea, 500)
     ds = [depthFromAreaStreet(x, ps) for x in xs]
     ys = [psiFromAreaStreet(x, ps) for x in xs]
     yps = [psiPrimeFromAreaStreet(x, ps) for x in xs]

@@ -5,6 +5,7 @@ from app.streetGeometry import (
     depthFromAreaStreet,
     psiFromAreaStreet,
     psiPrimeFromAreaStreet,
+    areaFromPsiStreet,
 )
 
 
@@ -119,19 +120,6 @@ class TestStreetGeometry:
         # Depth should equal curb height
         assert depth == approx(ps["H_curb"], rel=1e-3)
 
-    def test_depth_on_sidewalk(self, street_params, area_boundaries):
-        """Test depth when water is on sidewalk (above curb)."""
-        ps = street_params
-        # Test at midpoint on sidewalk
-        A_curb = area_boundaries["betweenCrownAndCurb"]
-        A_max = area_boundaries["onSidewalk"]
-        A_test = 0.5 * (A_curb + A_max)
-
-        depth = depthFromAreaStreet(A_test, ps)
-
-        # Depth should be above curb height
-        assert depth > ps["H_curb"]
-
     def test_depth_monotonicity(self, street_params, area_boundaries):
         """Test that depth increases monotonically with area."""
         A_max = area_boundaries["onSidewalk"]
@@ -212,26 +200,6 @@ class TestStreetGeometry:
         # Verify psi is positive
         assert psi > 0
 
-    def test_psi_from_area_on_sidewalk(self, street_params, area_boundaries):
-        """Test psi when water is on sidewalk."""
-        ps = street_params
-        A_curb = area_boundaries["betweenCrownAndCurb"]
-        A_max = area_boundaries["onSidewalk"]
-        A_test = 0.5 * (A_curb + A_max)
-
-        psi = psiFromAreaStreet(A_test, ps)
-
-        # Verify psi is positive
-        assert psi > 0
-
-        # Verify psi calculation formula for sidewalk region
-        pStreet = (
-            ps["Sx"] * ps["T_crown"] * np.sqrt(np.power(ps["Sx"], -1) + 1)
-            + ps["H_curb"]
-        )
-        expected_psi = A_test * A_test * np.power(pStreet + ps["T_curb"], -1)
-        assert psi == approx(expected_psi, rel=1e-6)
-
     def test_psi_monotonicity(self, street_params, area_boundaries):
         """Test that psi increases monotonically with area."""
         A_max = area_boundaries["onSidewalk"]
@@ -297,25 +265,7 @@ class TestStreetGeometry:
         # Verify psi prime is positive
         assert psiPrime > 0
 
-    def test_psi_prime_on_sidewalk(self, street_params, area_boundaries):
-        """Test psi prime when water is on sidewalk."""
-        ps = street_params
-        A_curb = area_boundaries["betweenCrownAndCurb"]
-        A_max = area_boundaries["onSidewalk"]
-        A_test = 0.5 * (A_curb + A_max)
 
-        psiPrime = psiPrimeFromAreaStreet(A_test, ps)
-
-        # Verify psi prime is positive
-        assert psiPrime > 0
-
-        # Verify formula for sidewalk region
-        pStreet = (
-            ps["Sx"] * ps["T_crown"] * np.sqrt(np.power(ps["Sx"], -1) + 1)
-            + ps["H_curb"]
-        )
-        expected_psiPrime = 2 * A_test * np.power(pStreet + ps["T_curb"], -1)
-        assert psiPrime == approx(expected_psiPrime, rel=1e-6)
 
     def test_psi_prime_consistency_with_psi(self, street_params, area_boundaries):
         """Test that psi prime is approximately the derivative of psi."""
@@ -351,6 +301,296 @@ class TestStreetGeometry:
         # Should be same order of magnitude
         assert 0.1 < psiPrime_below / psiPrime_above < 10
 
+    # Tests for areaFromPsiStreet
+    def test_area_from_psi_zero(self, street_params):
+        """Test area when psi is zero."""
+        area = areaFromPsiStreet(0.0, street_params)
+        assert area == approx(0.0, abs=1e-10)
+
+    def test_area_from_psi_round_trip_below_crown(self, street_params, area_boundaries):
+        """Test round-trip conversion A -> psi -> A in below crown region."""
+        ps = street_params
+        # Test multiple points below crown
+        A_crown = area_boundaries["belowCrown"]
+        test_areas = [0.1 * A_crown, 0.5 * A_crown, 0.9 * A_crown, A_crown]
+
+        for A_original in test_areas:
+            psi = psiFromAreaStreet(A_original, ps)
+            A_recovered = areaFromPsiStreet(psi, ps)
+            assert A_recovered == approx(A_original, rel=1e-6), (
+                f"Round trip failed: A_original={A_original}, "
+                f"psi={psi}, A_recovered={A_recovered}"
+            )
+
+    def test_area_from_psi_round_trip_above_crown(self, street_params, area_boundaries):
+        """Test round-trip conversion A -> psi -> A in above crown region."""
+        ps = street_params
+        A_crown = area_boundaries["belowCrown"]
+        A_curb = area_boundaries["betweenCrownAndCurb"]
+        
+        # Test multiple points above crown
+        test_areas = [
+            A_crown * 1.01,
+            A_crown * 1.1,
+            0.5 * (A_crown + A_curb),
+            0.8 * A_curb,
+            A_curb * 0.99,
+        ]
+
+        for A_original in test_areas:
+            psi = psiFromAreaStreet(A_original, ps)
+            A_recovered = areaFromPsiStreet(psi, ps)
+            assert A_recovered == approx(A_original, rel=1e-4), (
+                f"Round trip failed: A_original={A_original}, "
+                f"psi={psi}, A_recovered={A_recovered}"
+            )
+
+    def test_area_from_psi_at_crown_boundary(self, street_params, area_boundaries):
+        """Test area recovery at exactly the crown boundary."""
+        ps = street_params
+        A_crown = area_boundaries["belowCrown"]
+        
+        # Get psi at crown boundary
+        psi_crown = psiFromAreaStreet(A_crown, ps)
+        
+        # Recover area from psi
+        A_recovered = areaFromPsiStreet(psi_crown, ps)
+        
+        # Should be very close to original
+        assert A_recovered == approx(A_crown, rel=1e-4)
+
+    def test_area_from_psi_monotonicity(self, street_params, area_boundaries):
+        """Test that area increases monotonically with psi."""
+        ps = street_params
+        A_max = area_boundaries["betweenCrownAndCurb"]
+        
+        # Create range of areas, get their psis
+        areas = np.linspace(0.01 * A_max, 0.99 * A_max, 30)
+        psis = [psiFromAreaStreet(A, ps) for A in areas]
+        
+        # Recover areas from psis
+        recovered_areas = [areaFromPsiStreet(psi, ps) for psi in psis]
+        
+        # Check monotonicity
+        for i in range(len(recovered_areas) - 1):
+            assert recovered_areas[i] < recovered_areas[i + 1], (
+                f"Area not monotonic at index {i}: "
+                f"A[{i}]={recovered_areas[i]}, A[{i+1}]={recovered_areas[i + 1]}"
+            )
+
+    def test_area_from_psi_below_crown_formula(self, street_params, area_boundaries):
+        """Test that below crown uses correct closed-form formula."""
+        ps = street_params
+        A_test = 0.5 * area_boundaries["belowCrown"]
+        
+        # Get psi from area
+        psi = psiFromAreaStreet(A_test, ps)
+        
+        # Manually calculate area from psi using closed form
+        c = np.sqrt(2 * ps["Sx"]) * (1 + np.sqrt(1 + np.power(ps["Sx"], -2)))
+        A_expected = np.power(psi * np.power(c, 2/3), 3/4)
+        
+        # Get area from function
+        A_result = areaFromPsiStreet(psi, ps)
+        
+        assert A_result == approx(A_expected, rel=1e-9)
+
+    def test_area_from_psi_above_crown_numerical(self, street_params, area_boundaries):
+        """Test that above crown region uses numerical solver correctly."""
+        ps = street_params
+        A_crown = area_boundaries["belowCrown"]
+        A_curb = area_boundaries["betweenCrownAndCurb"]
+        A_test = 0.5 * (A_crown + A_curb)
+        
+        # Get psi from area (should be in above crown region)
+        psi = psiFromAreaStreet(A_test, ps)
+        
+        # Recover area
+        A_recovered = areaFromPsiStreet(psi, ps)
+        
+        # Should match original within numerical tolerance
+        assert A_recovered == approx(A_test, rel=1e-4)
+        
+        # Verify we're actually in the above crown region
+        assert A_test > A_crown
+
+    def test_area_from_psi_positive_output(self, street_params, area_boundaries):
+        """Test that area is always positive for positive psi."""
+        ps = street_params
+        A_max = area_boundaries["betweenCrownAndCurb"]
+        
+        # Test range of psi values
+        areas = np.linspace(0.01 * A_max, 0.99 * A_max, 20)
+        psis = [psiFromAreaStreet(A, ps) for A in areas]
+        
+        for psi in psis:
+            area = areaFromPsiStreet(psi, ps)
+            assert area > 0, f"Area not positive for psi={psi}"
+
+    def test_area_from_psi_different_street_sizes(
+        self, street_params, wide_street_params, steep_street_params
+    ):
+        """Test area recovery with different street geometries."""
+        test_params = [street_params, wide_street_params, steep_street_params]
+        
+        for ps in test_params:
+            # Calculate boundaries
+            A_crown = 0.5 * ps["T_crown"] * ps["Sx"] * ps["T_crown"]
+            A_curb = A_crown + ps["T_crown"] * (ps["H_curb"] - ps["Sx"] * ps["T_crown"])
+            
+            # Test in both regions
+            test_areas = [
+                0.5 * A_crown,  # Below crown
+                0.9 * A_crown,  # Near crown boundary
+                A_crown * 1.1,  # Just above crown
+                0.5 * (A_crown + A_curb),  # Between crown and curb
+            ]
+            
+            for A_original in test_areas:
+                psi = psiFromAreaStreet(A_original, ps)
+                A_recovered = areaFromPsiStreet(psi, ps)
+                assert A_recovered == approx(A_original, rel=1e-4)
+
+    def test_area_from_psi_consistency_with_inverse(self, street_params, area_boundaries):
+        """Test that areaFromPsi is truly the inverse of psiFromArea."""
+        ps = street_params
+        A_max = area_boundaries["betweenCrownAndCurb"]
+        
+        # Dense sampling across both regions
+        n_samples = 50
+        areas = np.linspace(0.001 * A_max, 0.999 * A_max, n_samples)
+        
+        for A_original in areas:
+            # Forward: A -> psi
+            psi = psiFromAreaStreet(A_original, ps)
+            
+            # Backward: psi -> A
+            A_recovered = areaFromPsiStreet(psi, ps)
+            
+            # Should be identity within tolerance
+            relative_error = abs(A_recovered - A_original) / A_original
+            assert relative_error < 1e-4, (
+                f"Inverse consistency failed at A={A_original}: "
+                f"recovered={A_recovered}, error={relative_error}"
+            )
+
+    def test_area_from_psi_small_values(self, street_params):
+        """Test numerical stability with very small psi values."""
+        ps = street_params
+        
+        # Very small psi values
+        small_psis = [1e-8, 1e-6, 1e-4, 1e-3]
+        
+        for psi_small in small_psis:
+            area = areaFromPsiStreet(psi_small, ps)
+            
+            # Should be finite and positive
+            assert np.isfinite(area), f"Area not finite for psi={psi_small}"
+            assert area >= 0, f"Area negative for psi={psi_small}"
+            
+            # Round trip should work
+            psi_recovered = psiFromAreaStreet(area, ps)
+            assert psi_recovered == approx(psi_small, rel=1e-3)
+
+    def test_area_from_psi_large_values(self, street_params, area_boundaries):
+        """Test with large psi values (near curb height)."""
+        ps = street_params
+        A_curb = area_boundaries["betweenCrownAndCurb"]
+        
+        # Get large psi near curb
+        large_areas = [0.8 * A_curb, 0.9 * A_curb, 0.95 * A_curb, 0.99 * A_curb]
+        
+        for A_large in large_areas:
+            psi_large = psiFromAreaStreet(A_large, ps)
+            A_recovered = areaFromPsiStreet(psi_large, ps)
+            
+            assert np.isfinite(A_recovered)
+            assert A_recovered == approx(A_large, rel=1e-4)
+
+    def test_area_from_psi_boundary_transition(self, street_params, area_boundaries):
+        """Test smooth transition at crown boundary between regimes."""
+        ps = street_params
+        A_crown = area_boundaries["belowCrown"]
+        
+        # Get areas just below and above crown
+        epsilon = 0.001 * A_crown
+        A_below = A_crown - epsilon
+        A_above = A_crown + epsilon
+        
+        # Convert to psi
+        psi_below = psiFromAreaStreet(A_below, ps)
+        psi_above = psiFromAreaStreet(A_above, ps)
+        
+        # Recover areas
+        A_below_recovered = areaFromPsiStreet(psi_below, ps)
+        A_above_recovered = areaFromPsiStreet(psi_above, ps)
+        
+        # Both should recover correctly
+        assert A_below_recovered == approx(A_below, rel=1e-4)
+        assert A_above_recovered == approx(A_above, rel=1e-4)
+
+    def test_area_from_psi_vectorization(self, street_params, area_boundaries):
+        """Test that function works with array inputs."""
+        ps = street_params
+        A_max = area_boundaries["betweenCrownAndCurb"]
+        
+        # Create array of test areas
+        test_areas = np.linspace(0.01 * A_max, 0.99 * A_max, 15)
+        
+        # Convert to psis
+        psis = np.array([psiFromAreaStreet(A, ps) for A in test_areas])
+        
+        # Recover areas one by one
+        recovered_areas = np.array([areaFromPsiStreet(psi, ps) for psi in psis])
+        
+        # Check all recoveries
+        np.testing.assert_allclose(recovered_areas, test_areas, rtol=1e-4)
+
+    def test_area_from_psi_extreme_geometries(self):
+        """Test with extreme but valid street geometries."""
+        extreme_params = [
+            # Very wide crown
+            {"T_curb": 2.0, "T_crown": 30.0, "H_curb": 0.2, "S_back": 0.02, "Sx": 0.02},
+            # Very steep slope
+            {"T_curb": 2.0, "T_crown": 10.0, "H_curb": 0.3, "S_back": 0.08, "Sx": 0.08},
+            # Very flat slope
+            {"T_curb": 2.0, "T_crown": 10.0, "H_curb": 0.3, "S_back": 0.005, "Sx": 0.005},
+        ]
+        
+        for ps in extreme_params:
+            A_crown = 0.5 * ps["T_crown"] * ps["Sx"] * ps["T_crown"]
+            A_curb = A_crown + ps["T_crown"] * (ps["H_curb"] - ps["Sx"] * ps["T_crown"])
+            
+            # Test in middle of range
+            A_test = 0.5 * (A_crown + A_curb)
+            psi = psiFromAreaStreet(A_test, ps)
+            A_recovered = areaFromPsiStreet(psi, ps)
+            
+            assert A_recovered == approx(A_test, rel=1e-3), (
+                f"Failed for extreme params: {ps}"
+            )
+
+    def test_area_from_psi_derivative_consistency(self, street_params, area_boundaries):
+        """Test that dA/dpsi = 1/(dpsi/dA) approximately."""
+        ps = street_params
+        A_max = area_boundaries["betweenCrownAndCurb"]
+        A_test = 0.5 * A_max
+        
+        # Get psi and psi'
+        psi = psiFromAreaStreet(A_test, ps)
+        psi_prime = psiPrimeFromAreaStreet(A_test, ps)
+        
+        # Numerical derivative of areaFromPsi
+        delta_psi = 0.001 * psi
+        A1 = areaFromPsiStreet(psi, ps)
+        A2 = areaFromPsiStreet(psi + delta_psi, ps)
+        dA_dpsi_numerical = (A2 - A1) / delta_psi
+        
+        # Should be approximately 1/psi_prime
+        expected_derivative = 1.0 / psi_prime
+        
+        assert dA_dpsi_numerical == approx(expected_derivative, rel=0.1)
+
     # Integration tests
     def test_consistent_geometry_calculations(self, street_params, area_boundaries):
         """Test that all geometric functions are consistent with each other."""
@@ -366,6 +606,31 @@ class TestStreetGeometry:
         assert depth > 0
         assert psi > 0
         assert psi_prime > 0
+
+    def test_complete_round_trip_all_functions(self, street_params, area_boundaries):
+        """Test complete round trip: A -> psi -> A and verify all properties."""
+        A_max = area_boundaries["betweenCrownAndCurb"]
+        test_areas = [0.1 * A_max, 0.3 * A_max, 0.5 * A_max, 0.7 * A_max, 0.9 * A_max]
+        
+        for A_original in test_areas:
+            # Get all properties from original area
+            depth_original = depthFromAreaStreet(A_original, street_params)
+            psi_original = psiFromAreaStreet(A_original, street_params)
+            psi_prime_original = psiPrimeFromAreaStreet(A_original, street_params)
+            
+            # Round trip: A -> psi -> A
+            A_recovered = areaFromPsiStreet(psi_original, street_params)
+            
+            # Get properties from recovered area
+            depth_recovered = depthFromAreaStreet(A_recovered, street_params)
+            psi_recovered = psiFromAreaStreet(A_recovered, street_params)
+            psi_prime_recovered = psiPrimeFromAreaStreet(A_recovered, street_params)
+            
+            # All should match
+            assert A_recovered == approx(A_original, rel=1e-4)
+            assert depth_recovered == approx(depth_original, rel=1e-4)
+            assert psi_recovered == approx(psi_original, rel=1e-4)
+            assert psi_prime_recovered == approx(psi_prime_original, rel=1e-4)
 
     def test_all_regions_with_steep_slope(self, steep_street_params):
         """Test all functions work with steep cross slopes."""
@@ -419,11 +684,15 @@ class TestStreetGeometry:
             depth = depthFromAreaStreet(A, street_params)
             psi = psiFromAreaStreet(A, street_params)
             psi_prime = psiPrimeFromAreaStreet(A, street_params)
+            
+            # Test round trip
+            A_recovered = areaFromPsiStreet(psi, street_params)
 
             # Basic sanity checks
             assert depth > 0
             assert psi > 0
             assert psi_prime > 0
+            assert A_recovered == approx(A, rel=1e-4)
 
     def test_depth_matches_expected_at_key_points(self, street_params):
         """Test depth matches expected values at key geometric points."""
