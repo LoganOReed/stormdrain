@@ -142,6 +142,10 @@ class HydraulicGraph:
             self.G.es["Afull"] = np.array([(np.pi / 4)*e["yFull"]*e["yFull"] for e in self.G.es])
             self.G.es["PsiFull"] = np.array([getPsiMax(e) for e in self.G.es]) 
 
+        # used for manning equation
+        self.G.es["beta"] = np.array([np.sqrt(e["slope"]) / e["n"] for e in self.G.es]) 
+        self.G.es["qFull"] = np.array([e["beta"] * e["PsiFull"] for e in self.G.es]) 
+
         # 1 is source node and 2 is target node
         self.G.es["Q1"] = np.zeros(self.G.ecount())
         self.G.es["Q2"] = np.zeros(self.G.ecount())
@@ -233,6 +237,7 @@ class HydraulicGraph:
             else:
                 fLo = fHi
 
+
             # if fLo and fHi have same sign, set lo to 0
             if fLo*fHi > 0:
                 aHi = aLo
@@ -297,10 +302,17 @@ class HydraulicGraph:
                 n = self.G.vs[nid]
                 if n.outdegree() != 0:
                     e = self.G.vs[nid].incident(mode="out")[0]
-                    qFull = np.sqrt(e["slope"])* (1/e["n"])*e["PsiFull"]
                 else:
                     pprint(f"skipping update for nid: {nid}")
                     return
+
+                # create scaled terms for the solver
+                betaScaled = e["beta"] / e["qFull"]
+                q1 = e["Q1"] / e["qFull"]
+                q2 = e["Q2"] / e["qFull"]
+                a1 = e["A1"] / e["Afull"]
+                a2 = e["A2"] / e["Afull"]
+
 
                 #2. Q1 (get incoming edges and coupling terms)
                 incomingEdges = getIncomingEdges(n,self.G)
@@ -311,6 +323,14 @@ class HydraulicGraph:
                 else:
                     e["Q1"] = incomingEdges + incomingCoupled
                     qin = e["Q1"] / qFull
+
+                if qin >= 1.0:
+                    ain = 1.0
+                else:
+                    pass
+
+                    # get s of a
+
                 
                 #3. A1 (inverse manning)
                 def phiInverse(x,psiFromArea,psiPrimeFromArea,p):
