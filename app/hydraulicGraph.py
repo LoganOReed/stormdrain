@@ -112,7 +112,7 @@ class HydraulicGraph:
             slope = (self.G.vs[e.source]["z"] - self.G.vs[e.target]["z"]) / self.G.es[
                 e.index
             ]["length"]
-            if slope < 0.00003048:
+            if slope < 0.0001:
                 print(f"WARNING: slope for edge ({e.source}, {e.target}) is too small.")
                 print(
                     f"{e.source}: ({self.G.vs[e.source]['x']}, {self.G.vs[e.source]['y']}, {self.G.vs[e.source]['z']})"
@@ -132,8 +132,8 @@ class HydraulicGraph:
         self.G.es["T_curb"] = 8 * 0.3048
         self.G.es["T_crown"] = 15 * 0.3048
         self.G.es["H_curb"] = 1 * 0.3048
-        self.G.es["S_back"] = 0.02 * 0.3048
-        self.G.es["Sx"] = 0.02 * 0.304
+        self.G.es["S_back"] = 0.02 
+        self.G.es["Sx"] = 0.02 
 
         if self.graphType == "STREET":
             # This is a choice made when creating the street lookup tables
@@ -211,84 +211,144 @@ class HydraulicGraph:
             return incomingCoupled
 
         def solveContinuity(dt,eid):
-            """uses normalized flow."""
-            # Initial guess at previous timestep
-            aNew = eid["A2"]
-            #1. get consts
-            c1 = (eid["length"] * self.THETA) / (dt * self.PHI)
-            c2 = (
-                c1
-                * (
-                    (1 - self.THETA) * (eid["A1"] - eid["A1Prev"])
-                    - (self.THETA * eid["A2Prev"])
-                )
-                + ((1 - self.PHI) / self.PHI)
-                * (eid["Q2Prev"] - eid["Q1Prev"])
-                - eid["Q1"]
-            )
-            beta = np.sqrt(eid["slope"]) / eid["n"]
+            """
+            Solves continuity equation for normalized area at downstream end.
+            Uses normalized flow (divided by qFull).
             
-
-            #2. determine bounds on a
-            aHi = 1.0;
-            fHi = 1.0 + c1 + c2;
-
-            # try lower bound st section factor is max
-            aLo = self.psiFromArea(eid["PsiFull"], eid) / eid["Afull"]
-
-            if aLo < aHi:
-                fLo = ( beta * eid["PsiFull"] ) + (c1 * aLo) + c2;
-            else:
-                fLo = fHi
-
-
-            # if fLo and fHi have same sign, set lo to 0
-            if fLo*fHi > 0:
-                aHi = aLo
-                fHi = fLo
+            Returns: aNew (normalized area, 0-1)
+            """
+            # Initial guess from previous timestep (normalize it)
+            aNew = eid["A2"] / eid["Afull"]
+            
+            #1. Compute constants for finite difference equation
+            c1 = (eid["length"] * self.THETA) / (dt * self.PHI)
+            
+            # Normalize all terms
+            c2 = (
+                c1 * (
+                    (1 - self.THETA) * ((eid["A1"] - eid["A1Prev"]) / eid["Afull"])
+                    - (self.THETA * eid["A2Prev"] / eid["Afull"])
+                )
+                + ((1 - self.PHI) / self.PHI) * ((eid["Q2Prev"] - eid["Q1Prev"]) / eid["qFull"])
+                - (eid["Q1"] / eid["qFull"])
+            )
+            
+            betaScaled = (np.sqrt(eid["slope"]) / eid["n"]) / eid["qFull"]
+            
+            #2. Set up bounds for root finding
+            aHi = 1.0  # Full flow
+            # For full flow: psi/psiFull = 1.0 (approximately)
+            fHi = betaScaled * 1.0 + c1 * aHi + c2
+            
+            # Lower bound: try area that gives maximum section factor (typically ~0.94 for pipes)
+            try:
+                aMaxPsi = self.areaFromPsi(eid["PsiFull"], eid) / eid["Afull"]
+                aLo = min(aMaxPsi, 0.94)
+            except:
+                aLo = 0.5  # fallback
+            
+            fLo = betaScaled * (eid["PsiFull"] / eid["PsiFull"]) + c1 * aLo + c2
+            
+            # Check if bounds bracket the root
+            if fLo * fHi > 0.0:
+                # Not bracketed - try extending lower bound to zero
                 aLo = 0.0
-                fLo = c2
-            if fLo*fHi >= 0:
-                # do search
-                # check that A2Prev is in interval
-                if aNew < aLo or aNew > aHi:
-                    aNew = (aLo + aHi) / 2
-                if fLo > fHi:
-                    # check that bounds are the right way around
-                    aTmp = aLo
-                    aLo = aHi
-                    aHi = aTmp
-                aNew,n = newtonBisection(aLo,aHi,continuity, p={
+                fLo = c2  # psi(0) = 0
+                
+                if fLo * fHi > 0.0:
+                    # Still not bracketed - make decision based on signs
+                    if fLo < 0.0 and fHi < 0.0:
+                        # Both negative - equation wants more than pipe can handle
+                        return 1.0
+                    else:
+                        # Both positive/zero - equation wants no flow
+                        return 0.0
+            
+            # Ensure correct ordering: fLo < 0 < fHi (typically)
+            if fLo > fHi:
+                aLo, aHi = aHi, aLo
+                fLo, fHi = fHi, fLo
+            
+            # Validate initial guess is in range
+            if aNew < aLo or aNew > aHi:
+                aNew = (aLo + aHi) / 2.0
+            
+            # Solve using Newton-Bisection
+            aNew, n = newtonBisection(
+                aLo, aHi, continuity, 
+                p={
                     "c1": c1,
                     "c2": c2,
-                    "beta": beta,
+                    "betaScaled": betaScaled,
                     "eid": eid,
-                    }, xinit=aNew)
-            elif fLo < 0:
-                # use full flow
-                aNew = 1.0
-            elif fLo > 0:
-                # use no flow
-                aNew = 0.0
-            pprint(f"new aNew: {aNew}")
+                }, 
+                xinit=aNew
+            )
+            
+            # Clamp to valid range
+            aNew = np.clip(aNew, 0.0, 1.0)
+            
             return aNew
 
         def continuity(x,p):
-            """uses normalized flow."""
-            f = (
-                p["beta"] * self.psiFromArea(x, p["eid"])
-                + p["c1"] * x
-                + p["c2"]
-            )
-            fp = (
-                p["beta"]
-                * self.psiPrimeFromArea(x, p["eid"])
-                + p["c1"]
-            )
+            """
+            Continuity equation for Newton-Bisection solver.
+            
+            Parameters:
+            x : float - normalized area (0-1)
+            p : dict - parameters containing c1, c2, betaScaled, eid
+            
+            Returns:
+            f : float - function value
+            fp : float - derivative value
+            """
+            # Convert normalized area to actual area for geometry functions
+            A_actual = x * p["eid"]["Afull"]
+            
+            # Get psi (returns actual value)
+            psi_actual = self.psiFromArea(A_actual, p["eid"])
+            
+            # Normalize psi for equation
+            psi_normalized = psi_actual / p["eid"]["PsiFull"]
+            
+            # Get derivative
+            psiPrime_actual = self.psiPrimeFromArea(A_actual, p["eid"])
+            
+            # Scale derivative: d(psi_norm)/d(a_norm) = d(psi_actual)/d(A_actual) * dA/da
+            # where dA/da = Afull
+            psiPrime_scaled = psiPrime_actual * p["eid"]["Afull"] / p["eid"]["PsiFull"]
+            
+            # Equation in normalized form
+            f = p["betaScaled"] * psi_normalized + p["c1"] * x + p["c2"]
+            fp = p["betaScaled"] * psiPrime_scaled + p["c1"]
+            
             return f, fp
 
-
-            pass
+                
+        def validate_timestep():
+            """Check for common numerical issues"""
+            # Check for negative values
+            Q1_vals = np.array(self.G.es["Q1"])
+            Q2_vals = np.array(self.G.es["Q2"])
+            A1_vals = np.array(self.G.es["A1"])
+            A2_vals = np.array(self.G.es["A2"])
+            
+            if np.any(Q1_vals < -1e-10):
+                pprint(f"WARNING: Negative Q1 detected: min={np.min(Q1_vals):.6e}")
+            if np.any(Q2_vals < -1e-10):
+                pprint(f"WARNING: Negative Q2 detected: min={np.min(Q2_vals):.6e}")
+            if np.any(A1_vals < -1e-10):
+                pprint(f"WARNING: Negative A1 detected: min={np.min(A1_vals):.6e}")
+            if np.any(A2_vals < -1e-10):
+                pprint(f"WARNING: Negative A2 detected: min={np.min(A2_vals):.6e}")
+            
+            # Check for NaN or Inf
+            if np.any(np.isnan(Q1_vals)) or np.any(np.isinf(Q1_vals)):
+                pprint("WARNING: NaN or Inf in Q1!")
+            if np.any(np.isnan(Q2_vals)) or np.any(np.isinf(Q2_vals)):
+                pprint("WARNING: NaN or Inf in Q2!")
+                
+        # Call the kinematic wave solver
         def kinematic(dt):
             """wrapper for kinematic wave model."""
             # check that network is acyclic
@@ -296,10 +356,10 @@ class HydraulicGraph:
                 raise ValueError("Street Network must be acyclic.")
 
             # save previous values
-            self.G.es["Q1Prev"] = self.G.es["Q1"]
-            self.G.es["Q2Prev"] = self.G.es["Q2"]
-            self.G.es["A1Prev"] = self.G.es["A1"]
-            self.G.es["A2Prev"] = self.G.es["A2"]
+            self.G.es["Q1Prev"] = np.array(self.G.es["Q1"])
+            self.G.es["Q2Prev"] = np.array(self.G.es["Q2"])
+            self.G.es["A1Prev"] = np.array(self.G.es["A1"])
+            self.G.es["A2Prev"] = np.array(self.G.es["A2"])
 
             #1. topo sort
             topoOrder = self.G.topological_sorting()
@@ -311,17 +371,11 @@ class HydraulicGraph:
                     pprint(f"skipping update for nid: {nid}")
                     continue
 
-                # create scaled terms for the solver
-                betaScaled = e["beta"] / e["qFull"]
-                q1 = e["Q1"] / e["qFull"]
-                q2 = e["Q2"] / e["qFull"]
-                a1 = e["A1"] / e["Afull"]
-                a2 = e["A2"] / e["Afull"]
-
-
                 #2. Q1 (get incoming edges and coupling terms)
                 incomingEdges = getIncomingEdges(n,self.G)
                 incomingCoupled = getIncomingCoupled(n,coupling)
+                
+                # Handle negative inflow
                 if incomingEdges + incomingCoupled < 0:
                     e["Q1"] = 0.0
                     qin = 0.0
@@ -329,57 +383,74 @@ class HydraulicGraph:
                     e["Q1"] = incomingEdges + incomingCoupled
                     qin = e["Q1"] / e["qFull"]
 
-                #3. A1 from inverse manning
+                #3. A1 from inverse Manning equation: Q = beta * psi(A)
                 if qin >= 1.0:
+                    # Flow at or exceeds capacity
                     ain = 1.0
+                elif qin <= 1e-10:
+                    # Essentially no flow
+                    ain = 0.0
                 else:
-                    # TODO: Check that areaFromPsi uses scaled value not actual value
-                    ain = self.areaFromPsi(qin/betaScaled, e)
-                    pprint(f"ain: {ain}")
+                    # Use inverse: Q = beta * psi, so psi = Q/beta, then A = areaFromPsi(psi)
+                    beta = np.sqrt(e["slope"]) / e["n"]
+                    psi_needed = e["Q1"] / beta
+                    
+                    # Clamp to valid range
+                    psi_needed = min(psi_needed, e["PsiFull"])
+                    
+                    # Get area from psi (areaFromPsi expects actual psi, returns actual area)
+                    A1_actual = self.areaFromPsi(psi_needed, e)
+                    ain = A1_actual / e["Afull"]
+                    
+                    pprint(f"Node {nid}: qin={qin:.6f}, psi_needed={psi_needed:.6f}, ain={ain:.6f}")
 
                 #4. solve continuity for a2
-                # check for tiny flow
-                if qin <=1e-20 or q2 <= 1e-20:
-                    qout = 0.0
-                    aout = 0.0
+                # Only check inflow for zero condition (allow drainage if previous A2 > 0)
+                if qin <= 1e-10:
+                    # No inflow - check if there's water to drain
+                    if e["A2Prev"] > 1e-10:
+                        # Allow drainage
+                        aout = solveContinuity(dt, e)
+                        # Compute outflow from Manning
+                        beta = np.sqrt(e["slope"]) / e["n"]
+                        A2_actual = aout * e["Afull"]
+                        psi2 = self.psiFromArea(A2_actual, e)
+                        qout = (beta * psi2) / e["qFull"]
+                    else:
+                        # No water to drain
+                        aout = 0.0
+                        qout = 0.0
                 else:
-                    # solve finite difference form of continuity eqn.
-                    aout = solveContinuity(dt,e)
-                    #5. q2 manning
-                    qout = betaScaled * self.psiFromArea(aout*e["Afull"], e)
-                    if qin > 1.0:
-                        qin = 1.0
+                    # Normal solve with inflow
+                    aout = solveContinuity(dt, e)
+                    
+                    # Compute Q2 from A2 using Manning equation
+                    beta = np.sqrt(e["slope"]) / e["n"]
+                    A2_actual = aout * e["Afull"]
+                    psi2 = self.psiFromArea(A2_actual, e)
+                    qout = (beta * psi2) / e["qFull"]
+                    
+                    # Clamp qin for saving
+                    qin = min(qin, 1.0)
 
-                #5. save results
+                #5. save results (convert back to actual values)
                 e["Q1"] = qin * e["qFull"]
                 e["A1"] = ain * e["Afull"]
                 e["Q2"] = qout * e["qFull"]
                 e["A2"] = aout * e["Afull"]
-                #6. OPTIONAL: Get Measurables
-                n["depth"] = (getIncomingEdges(n,self.G) + e["Q1"]) / len(self.G.vs[nid].incident(mode="in"))
+                
+                #6. Compute depth at node for visualization
+                if e["A1"] > 0:
+                    n["depth"] = self.depthFromArea(e["A1"], e)
+                else:
+                    n["depth"] = 0.0
 
                 
-        #         #3. A1 (inverse manning)
-        #         def phiInverse(x,psiFromArea,psiPrimeFromArea,p):
-        #             # TODO: I need to double check what im doing here
-        #             # NOTE: THIS IS DEFINITELY WRONG
-        #             f = psiFromArea((qin / ((e["slope"]* (1/e["n"])) / qFull)), p) - x
-        #             fp = psiPrimeFromArea((qin / ((e["slope"]* (1/e["n"])) / qFull)), p)
-        #             return f, fp
-        #
-        #         if e["Q1"] < 1e-20:
-        #             e["A1"] = 0.0
-        #         else:
-        #             e["A1"] = newtonBisection()
-        #
-        #
-        #         #4. A2 (solve continuity)
-        #         #5. Q2 (Manning Equation)
-        #     # for eid in self.G.es:
-        #     #      solveContinuity(eid,THETA,PHI)
-        # THETA = 0.6
-        # PHI = 0.6
         kinematic(dt)
+        
+        # Validate results for debugging
+        validate_timestep()
+        
         depth = self.G.vs["depth"]
         averageArea = np.divide(self.G.es["A1"] + self.G.es["A2"], 2.0)
         peakDischarge = np.max(self.G.es["Q2"])
