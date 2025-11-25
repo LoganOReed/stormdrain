@@ -11,7 +11,7 @@ from .streetGeometry import (
     depthFromAreaStreet,
     psiFromAreaStreet,
     psiPrimeFromAreaStreet,
-    # areaFromPsiStreet,
+    areaFromPsiStreet,
     fullAreaStreet,
     maxPsiStreet,
 )
@@ -30,15 +30,19 @@ class HydraulicGraph:
     def __init__(self, graphType, file):
         super(HydraulicGraph, self).__init__()
         self.graphType = graphType
+        self.PHI = 0.6
+        self.THETA = 0.6
         if graphType == "STREET":
             self.depthFromArea = depthFromAreaStreet
             self.psiFromArea = psiFromAreaStreet
             self.psiPrimeFromArea = psiPrimeFromAreaStreet
+            self.areaFromPsi = areaFromPsiStreet
         else:
             # TODO: Change this to circular geometry
             self.depthFromArea = depthFromAreaCircle
             self.psiFromArea = psiFromAreaCircle
             self.psiPrimeFromArea = psiPrimeFromAreaCircle
+            self.areaFromPsi = areaFromPsiCircle
 
         data = pd.read_csv(f"data/{file}.csv")
         data = data[data["type"].str.contains(graphType)]
@@ -206,19 +210,19 @@ class HydraulicGraph:
             pprint(f"incoming coupled for {n.index}: {incomingCoupled}")
             return incomingCoupled
 
-        def solveContinuity(eid, THETA, PHI):
+        def solveContinuity(dt,eid):
             """uses normalized flow."""
             # Initial guess at previous timestep
-            aNew = eid["A2Prev"]
+            aNew = eid["A2"]
             #1. get consts
-            c1 = (eid["length"] * THETA) / (dt * PHI)
+            c1 = (eid["length"] * self.THETA) / (dt * self.PHI)
             c2 = (
                 c1
                 * (
-                    (1 - THETA) * (eid["A1"] - eid["A1Prev"])
-                    - (THETA * eid["A2Prev"])
+                    (1 - self.THETA) * (eid["A1"] - eid["A1Prev"])
+                    - (self.THETA * eid["A2Prev"])
                 )
-                + ((1 - PHI) / PHI)
+                + ((1 - self.PHI) / self.PHI)
                 * (eid["Q2Prev"] - eid["Q1Prev"])
                 - eid["Q1"]
             )
@@ -268,6 +272,7 @@ class HydraulicGraph:
                 aNew = 0.0
             pprint(f"new aNew: {aNew}")
             return aNew
+
         def continuity(x,p):
             """uses normalized flow."""
             f = (
@@ -284,7 +289,7 @@ class HydraulicGraph:
 
 
             pass
-        def kinematic(dt,THETA,PHI):
+        def kinematic(dt):
             """wrapper for kinematic wave model."""
             # check that network is acyclic
             if not self.G.is_dag():
@@ -304,7 +309,7 @@ class HydraulicGraph:
                     e = self.G.vs[nid].incident(mode="out")[0]
                 else:
                     pprint(f"skipping update for nid: {nid}")
-                    return
+                    continue
 
                 # create scaled terms for the solver
                 betaScaled = e["beta"] / e["qFull"]
@@ -322,41 +327,62 @@ class HydraulicGraph:
                     qin = 0.0
                 else:
                     e["Q1"] = incomingEdges + incomingCoupled
-                    qin = e["Q1"] / qFull
+                    qin = e["Q1"] / e["qFull"]
 
+                #3. A1 from inverse manning
                 if qin >= 1.0:
                     ain = 1.0
                 else:
-                    pass
+                    # TODO: Check that areaFromPsi uses scaled value not actual value
+                    ain = self.areaFromPsi(qin/betaScaled, e)
+                    pprint(f"ain: {ain}")
 
-                    # get s of a
+                #4. solve continuity for a2
+                # check for tiny flow
+                if qin <=1e-20 or q2 <= 1e-20:
+                    qout = 0.0
+                    aout = 0.0
+                else:
+                    # solve finite difference form of continuity eqn.
+                    aout = solveContinuity(dt,e)
+                    #5. q2 manning
+                    qout = betaScaled * self.psiFromArea(aout*e["Afull"], e)
+                    if qin > 1.0:
+                        qin = 1.0
+
+                #5. save results
+                e["Q1"] = qin * e["qFull"]
+                e["A1"] = ain * e["Afull"]
+                e["Q2"] = qout * e["qFull"]
+                e["A2"] = aout * e["Afull"]
+                #6. OPTIONAL: Get Measurables
+                n["depth"] = (getIncomingEdges(n,self.G) + e["Q1"]) / len(self.G.vs[nid].incident(mode="in"))
 
                 
-                #3. A1 (inverse manning)
-                def phiInverse(x,psiFromArea,psiPrimeFromArea,p):
-                    # TODO: I need to double check what im doing here
-                    # NOTE: THIS IS DEFINITELY WRONG
-                    f = psiFromArea((qin / ((e["slope"]* (1/e["n"])) / qFull)), p) - x
-                    fp = psiPrimeFromArea((qin / ((e["slope"]* (1/e["n"])) / qFull)), p)
-                    return f, fp
-
-                if e["Q1"] < 1e-20:
-                    e["A1"] = 0.0
-                else:
-                    e["A1"] = newtonBisection()
-
-
-                #4. A2 (solve continuity)
-                #5. Q2 (Manning Equation)
-                #6. OPTIONAL: Get Measurables
-            # for eid in self.G.es:
-            #      solveContinuity(eid,THETA,PHI)
-        THETA = 0.6
-        PHI = 0.6
-        kinematic(dt,THETA,PHI)
-        depth = 0
-        averageArea = 0
-        peakDischarge = 0
+        #         #3. A1 (inverse manning)
+        #         def phiInverse(x,psiFromArea,psiPrimeFromArea,p):
+        #             # TODO: I need to double check what im doing here
+        #             # NOTE: THIS IS DEFINITELY WRONG
+        #             f = psiFromArea((qin / ((e["slope"]* (1/e["n"])) / qFull)), p) - x
+        #             fp = psiPrimeFromArea((qin / ((e["slope"]* (1/e["n"])) / qFull)), p)
+        #             return f, fp
+        #
+        #         if e["Q1"] < 1e-20:
+        #             e["A1"] = 0.0
+        #         else:
+        #             e["A1"] = newtonBisection()
+        #
+        #
+        #         #4. A2 (solve continuity)
+        #         #5. Q2 (Manning Equation)
+        #     # for eid in self.G.es:
+        #     #      solveContinuity(eid,THETA,PHI)
+        # THETA = 0.6
+        # PHI = 0.6
+        kinematic(dt)
+        depth = self.G.vs["depth"]
+        averageArea = np.divide(self.G.es["A1"] + self.G.es["A2"], 2.0)
+        peakDischarge = np.max(self.G.es["Q2"])
         return depth, averageArea, coupling, peakDischarge
 
 
