@@ -112,8 +112,8 @@ class HydraulicGraph:
             slope = (self.G.vs[e.source]["z"] - self.G.vs[e.target]["z"]) / self.G.es[
                 e.index
             ]["length"]
-            if slope < 0.0001:
-                print(f"WARNING: slope for edge ({e.source}, {e.target}) is too small.")
+            if slope < 0.00001:
+                print(f"WARNING: slope for edge ({e.source}, {e.target}) is too small at {slope}.")
                 print(
                     f"{e.source}: ({self.G.vs[e.source]['x']}, {self.G.vs[e.source]['y']}, {self.G.vs[e.source]['z']})"
                 )
@@ -452,7 +452,7 @@ class HydraulicGraph:
         validate_timestep()
         
         depth = self.G.vs["depth"]
-        averageArea = np.divide(self.G.es["A1"] + self.G.es["A2"], 2.0)
+        averageArea = np.divide([e["A1"] + e["A2"] for e in self.G.es], 2.0)
         peakDischarge = np.max(self.G.es["Q2"])
         return depth, averageArea, coupling, peakDischarge
 
