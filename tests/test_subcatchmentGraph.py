@@ -242,16 +242,16 @@ class TestSubcatchmentGraph:
         simple_csv_data.to_csv(csv_path, index=False)
         monkeypatch.chdir(tmp_path)
         
-        # Test with low oldwater ratio (more infiltration)
+        # Test with low oldwater ratio (less infiltration = more runoff = more depth)
         graph_low = SubcatchmentGraph("test", oldwaterRatio=0.1)
         depths_low, _ = graph_low.update(0.0, 3600.0, 0.001)
         
-        # Test with high oldwater ratio (less infiltration)
+        # Test with high oldwater ratio (more infiltration = less runoff = less depth)
         graph_high = SubcatchmentGraph("test", oldwaterRatio=0.9)
         depths_high, _ = graph_high.update(0.0, 3600.0, 0.001)
         
-        # Higher ratio should result in higher depths
-        assert sum(depths_high) > sum(depths_low)
+        # Lower oldwater ratio should result in higher depths (more effective rainfall)
+        assert sum(depths_low) > sum(depths_high)
 
     def test_update_manning_equation_components(self, temp_csv_file):
         """Test that Manning equation is correctly applied."""
@@ -398,8 +398,8 @@ class TestSubcatchmentGraph:
         
         depths, outflows = graph.update(0.0, dt, rainfall)
         
-        # Calculate total input
-        total_input = rainfall * graph.oldwaterRatio * dt * sum(graph.G.vs["area"])
+        # Calculate total input (effective rainfall = rainfall * (1 - oldwaterRatio))
+        total_input = rainfall * (1 - graph.oldwaterRatio) * dt * sum(graph.G.vs["area"])
         
         # Calculate total output
         total_output = sum(outflows) * dt

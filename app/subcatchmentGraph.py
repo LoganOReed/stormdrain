@@ -24,6 +24,26 @@ class SubcatchmentGraph:
         edges = []
 
         self.hydraulicCoupling = np.array(data["outgoing"].astype(int))
+        
+        # Read area and width from CSV if available, otherwise use defaults
+        if "area" in data.columns:
+            areas = np.array(data["area"].astype(float))
+        else:
+            # Default area of 10000 m² per subcatchment
+            areas = np.full(n, 10000.0)
+            
+        if "width" in data.columns:
+            widths = np.array(data["width"].astype(float))
+        else:
+            # Default width of 100 m per subcatchment
+            widths = np.full(n, 100.0)
+            
+        # Read Manning's n if available
+        if "n_Manning" in data.columns:
+            n_manning = np.array(data["n_Manning"].astype(float))
+        else:
+            n_manning = np.full(n, 0.017)
+        
         self.G = ig.Graph(
             n=n,
             edges=edges,
@@ -34,12 +54,10 @@ class SubcatchmentGraph:
                 "x": np.array(data["x"].astype(float)),
                 "y": np.array(data["y"].astype(float)),
                 "z": np.array(data["z"].astype(float)),
-                # TODO: Make Area and width in csv
-                "area": np.array([10000.0, 10000.0, 10000.0]),
-                "width": np.array([100.0, 100.0, 100.0]),
+                "area": areas,
+                "width": widths,
                 "slope": np.array(data["slope"].astype(float)),
-                # TODO: Make n be in csv
-                "n": np.array([0.017 for _ in range(n)]),
+                "n": n_manning,
                 "depth": np.zeros(n),
                 "runoff": np.zeros(n),
             },
@@ -61,8 +79,6 @@ class SubcatchmentGraph:
             average rainfall measured over the time [t,t+dt]
 
         """
-        outflow = np.zeros(self.G.vcount())
-
         def ode(t, x):
             """
             Solves d_t = f - alpha * (d-ds)^5/3.
@@ -85,11 +101,10 @@ class SubcatchmentGraph:
                     self.G.vs["area"][i] * self.G.vs["n"][i]
                 )
                 depth_above_invert = np.maximum(x[i] - self.G.vs["invert"][i], 0.0)
-                # outgoingRunoff
-                outflow[i] = a * np.power(depth_above_invert, 5 / 3)
+                # outgoingRunoff (rate, in m/s)
+                outflow_rate = a * np.power(depth_above_invert, 5 / 3)
                 # NOTE: We remove a certain percentage of the rainfall as old water (infiltration + evaporation)
-                y[i] = rainfall * self.oldwaterRatio + incomingRunoff[i] - outflow[i]
-            # print(f"incomingRunoff: {incomingRunoff}")
+                y[i] = rainfall * (1 - self.oldwaterRatio) + incomingRunoff[i] - outflow_rate
             return y
 
         # NOTE: RK45 returns an iterator we need to use solve_ivp
@@ -97,7 +112,20 @@ class SubcatchmentGraph:
             ode, (t, t + dt), self.G.vs["depth"], method="RK45"
         )
         self.G.vs["depth"] = solution.y[:, -1]
-        self.G.vs["runoff"] = np.array(outflow * self.G.vs['area'])
+        
+        # BUGFIX: Compute outflow from the FINAL depths, not from intermediate ODE evaluations
+        # RK45 calls the ODE multiple times at intermediate points, so we must recalculate
+        # the outflow using the actual final depths
+        final_outflow = np.zeros(self.G.vcount())
+        for i in range(self.G.vcount()):
+            a = (self.G.vs["width"][i] * np.power(self.G.vs["slope"][i], 0.5)) / (
+                self.G.vs["area"][i] * self.G.vs["n"][i]
+            )
+            depth_above_invert = np.maximum(self.G.vs["depth"][i] - self.G.vs["invert"][i], 0.0)
+            final_outflow[i] = a * np.power(depth_above_invert, 5 / 3)
+        
+        # Convert outflow rate (m/s) to volumetric flow (m³/s)
+        self.G.vs["runoff"] = np.array(final_outflow * self.G.vs['area'])
 
         # pprint(f"outflow: {self.G.vs['runoff']}")
         # pprint(f"type: {type(self.G.vs['runoff'])}")
@@ -139,5 +167,3 @@ class SubcatchmentGraph:
             fileName = "subcatchmentGraph"
         plt.savefig(f"figures/{fileName}.png")
         plt.show()
-
-

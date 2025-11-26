@@ -16,7 +16,7 @@ from pprint import pprint
 from .subcatchmentGraph import SubcatchmentGraph
 from .hydraulicGraph import HydraulicGraph
 from .newtonBisection import newtonBisection
-from .visualize import visualize
+from .visualize import visualize, visualize_observables_comparison, visualize_observables
 from .rain import normalizeRainfall
 from .drainCapture import capturedFlow
 
@@ -76,10 +76,12 @@ class Model:
 
         # TODO: Add whatever we want to report (e.g. depth, flow, etc)
 
-    def run(self):
+    def run(self, shouldVisualize=False):
         for n in range(len(self.ts)):
             self.step(n)
             # pprint(f"peakDischarges: {self.peakDischarges}")
+        if not shouldVisualize:
+            return
         visualize(
             self.subcatchment,
             self.street,
@@ -213,13 +215,15 @@ class Model:
 
     def updateRunoff(self):
         for nid in self.subcatchment.G.vs:
-            self.coupling["subcatchmentRunoff"][self.subcatchment.hydraulicCoupling[nid.index]] = nid["runoff"]
+            # Note: hydraulicCoupling contains 1-based CSV IDs, but coupling array is 0-indexed
+            self.coupling["subcatchmentRunoff"][self.subcatchment.hydraulicCoupling[nid.index] - 1] = nid["runoff"]
         # pprint(f"finished updateRunoff: {self.coupling}")
 
 
 
 if __name__ == "__main__":
     file = "largerExample"
+    fileDoubled = "doubled_largerExample"
     tempRainfall = np.array(
         [
             0.10,
@@ -249,3 +253,7 @@ if __name__ == "__main__":
     dt = 1800
     model = Model(file, dt, rainInfo, oldwaterRatio=0.2)
     model.run()
+    modelDoubled = Model(fileDoubled, dt, rainInfo, oldwaterRatio=0.2)
+    modelDoubled.run()
+    visualize_observables(model)
+    # visualize_observables_comparison(model, modelDoubled, "largerExample", "DoubledLargerExample", "dx_comparison")

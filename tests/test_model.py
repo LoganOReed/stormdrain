@@ -579,8 +579,9 @@ class TestModelUpdateRunoff:
         model.updateRunoff()
         
         # Check that values were mapped
+        # Note: hydraulicCoupling contains 1-based CSV IDs, coupling array is 0-indexed
         for v in model.subcatchment.G.vs:
-            target_idx = model.subcatchment.hydraulicCoupling[v.index]
+            target_idx = model.subcatchment.hydraulicCoupling[v.index] - 1  # Convert to 0-based
             expected_runoff = v["runoff"]
             actual_runoff = model.coupling["subcatchmentRunoff"][target_idx]
             assert actual_runoff == approx(expected_runoff)
@@ -690,14 +691,24 @@ class TestModelRun:
         assert all(np.isfinite(p) for p in model.peakDischarges)
 
     def test_run_calls_visualize(self, temp_run_csv, short_rain_info):
-        """Test that run calls visualize at the end."""
+        """Test that run calls visualize when shouldVisualize=True."""
         model = Model(temp_run_csv, 1800, short_rain_info)
         
         with patch('app.model.visualize') as mock_visualize:
-            model.run()
+            model.run(shouldVisualize=True)
             
             # Visualize should have been called once
             mock_visualize.assert_called_once()
+
+    def test_run_does_not_call_visualize_by_default(self, temp_run_csv, short_rain_info):
+        """Test that run does not call visualize when shouldVisualize=False (default)."""
+        model = Model(temp_run_csv, 1800, short_rain_info)
+        
+        with patch('app.model.visualize') as mock_visualize:
+            model.run()  # Default shouldVisualize=False
+            
+            # Visualize should not have been called
+            mock_visualize.assert_not_called()
 
 
 class TestModelIntegration:
@@ -1375,16 +1386,26 @@ class TestModelValidation:
         # Outfall flows are in m³/s, need to multiply by dt
         total_street_outflow = sum(model.streetOutfallFlows) * model.dt
         total_sewer_outflow = sum(model.sewerOutfallFlows) * model.dt
-        total_outflow = total_street_outflow + total_sewer_outflow
+        total_storage = 0.0
+        for i in range(len(model.streetEdgeAreas)):
+            for j in range(len(model.streetEdgeAreas[0])):
+                total_storage += model.streetEdgeAreas[i][j]*model.street.G.es[j]["length"]
+                total_storage += model.sewerEdgeAreas[i][j]*model.sewer.G.es[j]["length"]
+        total_outflow = total_street_outflow + total_sewer_outflow + total_storage
+
+
         
         # Allow for water still in storage (not yet drained)
-        # This is a loose check - within 50% is reasonable for transient simulation
+        # This is a loose check - within 10% is reasonable for transient simulation
         if total_rainfall_volume > 0:
+            print(f"total rainfall volume: {total_rainfall_volume}, total network water: {total_outflow}")
             ratio = total_outflow / total_rainfall_volume
+            print(f"water ratio: {ratio}")
             # Outflow should be positive and bounded by input
             assert total_outflow >= 0, "Total outflow should be non-negative"
             # Allow significant tolerance due to storage and numerical integration
-            assert ratio <= 1.5, f"Outflow ({total_outflow:.4f}) significantly exceeds rainfall ({total_rainfall_volume:.4f})"
+            assert ratio <= 1.1, f"Outflow ({total_outflow:.4f}) significantly exceeds rainfall ({total_rainfall_volume:.4f})"
+            assert 0.9 <= ratio, f"Outflow ({total_outflow:.4f}) significantly exceeds rainfall ({total_rainfall_volume:.4f})"
 
     def test_cumulative_outflow_monotonic(self, temp_validation_csv, rainfall_event_info):
         """Test that cumulative outflow is monotonically increasing."""
@@ -1643,13 +1664,13 @@ class TestModelValidation:
         
         # Calculate total rainfall using trapezoidal integration
         # rainfall and rainfallTimes are normalized (m/s and seconds)
-        total_rainfall_integrated = np.trapezoid(model.rainfall, model.rainfallTimes)
+        total_rainfall_integrated = np.trapz(model.rainfall, model.rainfallTimes)
         
         # Should be positive for non-zero rainfall
         assert total_rainfall_integrated > 0, "Total rainfall should be positive"
         
         # The interpolated rain should integrate to approximately the same value
-        total_rain_from_ts = np.trapezoid(model.rain, model.ts)
+        total_rain_from_ts = np.trapz(model.rain, model.ts)
         
         # Allow 20% tolerance due to interpolation differences
         if total_rainfall_integrated > 0:
@@ -1674,8 +1695,8 @@ class TestModelValidation:
         total_outflow_high = sum(model_high.streetOutfallFlows) + sum(model_high.sewerOutfallFlows)
         
         # Low oldwater ratio means more effective rainfall, so more outflow
-        assert total_outflow_high >= total_outflow_low * 0.9, \
-                f"High oldwater ratio should result in more outflow"
+        assert total_outflow_low >= total_outflow_high * 0.9, \
+            "Lower oldwater ratio should result in more outflow"
 
 
 if __name__ == "__main__":

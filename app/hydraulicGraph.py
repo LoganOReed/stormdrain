@@ -199,7 +199,7 @@ class HydraulicGraph:
             totalIncoming = 0.0
             for incomingEdge in n.incident(mode="in"):
                 totalIncoming += incomingEdge["Q2"]
-            pprint(f"totalIncoming for {n.index}: {totalIncoming}")
+            # pprint(f"totalIncoming for {n.index}: {totalIncoming}")
             return totalIncoming
         def getIncomingCoupled(n,coupling):
             incomingCoupled = 0.0
@@ -209,7 +209,7 @@ class HydraulicGraph:
             incomingCoupled += coupling["drainCapture"][n["coupledID"] - 1]
             #3. add overflow
             incomingCoupled += coupling["drainOverflow"][n["coupledID"] - 1]
-            pprint(f"incoming coupled for {n.index}: {incomingCoupled}")
+            # pprint(f"incoming coupled for {n.index}: {incomingCoupled}")
             return incomingCoupled
 
         def solveContinuity(dt,eid):
@@ -370,7 +370,7 @@ class HydraulicGraph:
                 if n.outdegree() != 0:
                     e = self.G.vs[nid].incident(mode="out")[0]
                 else:
-                    pprint(f"skipping update for nid: {nid}")
+                    # pprint(f"skipping update for nid: {nid}")
                     continue
 
                 #2. Q1 (get incoming edges and coupling terms)
@@ -404,7 +404,7 @@ class HydraulicGraph:
                     A1_actual = self.areaFromPsi(psi_needed, e)
                     ain = A1_actual / e["Afull"]
                     
-                    pprint(f"Node {nid}: qin={qin:.6f}, psi_needed={psi_needed:.6f}, ain={ain:.6f}")
+                    # pprint(f"Node {nid}: qin={qin:.6f}, psi_needed={psi_needed:.6f}, ain={ain:.6f}")
 
                 #4. solve continuity for a2
                 # Only check inflow for zero condition (allow drainage if previous A2 > 0)
