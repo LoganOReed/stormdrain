@@ -67,6 +67,12 @@ class Model:
         self.drainOverflows = []
         self.drainInflows = []
         self.peakDischarges = []
+        
+        # Additional observables
+        self.streetMaxDepths = []           # Max depth in street network at each timestep
+        self.streetOutfallFlows = []        # Sum of flow to street outfall(s)
+        self.sewerOutfallFlows = []         # Sum of flow to sewer outfall(s)
+        self.streetPeakDischarges = []      # Peak discharge in street network only
 
         # TODO: Add whatever we want to report (e.g. depth, flow, etc)
 
@@ -92,7 +98,7 @@ class Model:
             self.rainfall,
             self.peakDischarges,
             self.dt,
-            file=f"{file}{dt}dt",
+            file=f"{self.file}{self.dt}dt",
             cmap=plt.cm.plasma,
             fps=5,
         )
@@ -141,6 +147,32 @@ class Model:
         self.drainOverflows.append(np.zeros(self.street.G.vcount()))
         self.drainInflows.append(np.zeros(self.sewer.G.vcount()))
         self.peakDischarges.append(streetPeakDischarge + sewerPeakDischarge)
+        
+        # Calculate and store additional observables
+        # 1. Max depth in street network
+        streetMaxDepth = np.max(streetDepth) if len(streetDepth) > 0 else 0.0
+        self.streetMaxDepths.append(streetMaxDepth)
+        
+        # 2. Sum of flow to street outfall(s)
+        streetOutfallFlow = 0.0
+        for nid in self.street.G.vs:
+            if nid["type"] == 1:  # Outfall node
+                # Sum Q2 from all incoming edges to the outfall
+                for e in nid.in_edges():
+                    streetOutfallFlow += e["Q2"]
+        self.streetOutfallFlows.append(streetOutfallFlow)
+        
+        # 3. Sum of flow to sewer outfall(s)
+        sewerOutfallFlow = 0.0
+        for nid in self.sewer.G.vs:
+            if nid["type"] == 1:  # Outfall node
+                # Sum Q2 from all incoming edges to the outfall
+                for e in nid.in_edges():
+                    sewerOutfallFlow += e["Q2"]
+        self.sewerOutfallFlows.append(sewerOutfallFlow)
+        
+        # 4. Peak discharge in street network only
+        self.streetPeakDischarges.append(streetPeakDischarge)
 
         # pprint(f"New Coupling: {newCoupling}")
 

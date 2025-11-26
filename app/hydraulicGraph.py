@@ -120,6 +120,8 @@ class HydraulicGraph:
                 print(
                     f"{e.target}: ({self.G.vs[e.target]['x']}, {self.G.vs[e.target]['y']}, {self.G.vs[e.target]['z']})"
                 )
+            elif slope < 0.0:
+                raise ValueError(f"ERROR: slope for edge ({e.source},{e.target}) is negative: {slope}")
             self.G.es[e.index]["slope"] = slope
 
         # pprint(f"Slopes: {self.G.es['slope']}")
